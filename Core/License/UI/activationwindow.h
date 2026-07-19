@@ -22,6 +22,11 @@ public:
     ~ActivationWindow();
 
 
+signals:
+
+    void licenseActivated();
+
+
 private slots:
 
     void on_activateButton_clicked();

@@ -27,6 +27,10 @@ void ActivationWindow::on_activateButton_clicked()
         ui->statusLabel->setText(
             "License Activated Successfully"
             );
+
+        emit licenseActivated();
+
+        accept();
     }
     else
     {

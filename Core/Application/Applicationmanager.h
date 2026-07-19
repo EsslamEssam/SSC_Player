@@ -8,6 +8,10 @@
 #include "../License/LicenseManager.h"
 
 
+class MainWindow;
+class ActivationWindow;
+
+
 class ApplicationManager : public QObject
 {
     Q_OBJECT
@@ -24,6 +28,9 @@ private:
     Logger m_logger;
     ConfigManager m_config;
     LicenseManager m_license;
+
+    MainWindow *m_mainWindow;
+    ActivationWindow *m_activationWindow;
 
 };
 
