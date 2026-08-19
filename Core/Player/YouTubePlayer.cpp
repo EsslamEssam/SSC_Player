@@ -295,7 +295,8 @@ void YouTubePlayer::installYouTubeFrameBridge()
             element.getAttribute("aria-checked") === "true" ||
             element.getAttribute("aria-selected") === "true" ||
             !!element.querySelector(
-                "[aria-checked=\"true\"], [aria-selected=\"true\"]"
+                ".ytp-menuitem-checked, .ytp-menuitem-selected, "
+                + "[aria-checked=\"true\"], [aria-selected=\"true\"]"
                 );
     }
 
@@ -327,12 +328,93 @@ void YouTubePlayer::installYouTubeFrameBridge()
         }
     }
 
+    function selectQualityOption(quality, attempt)
+    {
+        var qualityOption = findMenuItem(
+            qualityMatcher(quality)
+            );
+
+        if (!qualityOption)
+        {
+            if (attempt < 15)
+            {
+                window.setTimeout(
+                    function()
+                    {
+                        selectQualityOption(
+                            quality,
+                            attempt + 1
+                            );
+                    },
+                    120
+                    );
+            }
+            else
+            {
+                finishCommand(quality, false);
+            }
+
+            return;
+        }
+
+        qualityOption.click();
+
+        window.setTimeout(
+            function()
+            {
+                verifyQualitySelection(
+                    quality,
+                    qualityOption,
+                    0
+                    );
+            },
+            180
+            );
+    }
+
+    function openQualityMenu(quality, attempt)
+    {
+        var qualityItem = findMenuItem(
+            /quality|الجودة|qualité|qualidade|qualität/i
+            );
+
+        if (!qualityItem)
+        {
+            if (attempt < 15)
+            {
+                window.setTimeout(
+                    function()
+                    {
+                        openQualityMenu(
+                            quality,
+                            attempt + 1
+                            );
+                    },
+                    120
+                    );
+            }
+            else
+            {
+                finishCommand(quality, false);
+            }
+
+            return;
+        }
+
+        qualityItem.click();
+        selectQualityOption(quality, 0);
+    }
+
     function chooseQuality(quality, attempt)
     {
         installStyle();
 
         var settingsButton =
-            document.querySelector(".ytp-settings-button");
+            document.querySelector(
+                ".ytp-settings-button, "
+                + "[aria-label*=\"Settings\"], "
+                + "[data-tooltip-target-id=\"ytp-settings-button\"]"
+                );
 
         if (!settingsButton)
         {
@@ -360,47 +442,7 @@ void YouTubePlayer::installYouTubeFrameBridge()
         window.setTimeout(
             function()
             {
-                var qualityItem = findMenuItem(
-                    /quality|الجودة|qualité|qualidade|qualität/i
-                    );
-
-                if (!qualityItem)
-                {
-                    finishCommand(quality, false);
-                    return;
-                }
-
-                qualityItem.click();
-
-                window.setTimeout(
-                    function()
-                    {
-                        var qualityOption = findMenuItem(
-                            qualityMatcher(quality)
-                            );
-
-                        if (!qualityOption)
-                        {
-                            finishCommand(quality, false);
-                            return;
-                        }
-
-                        qualityOption.click();
-
-                        window.setTimeout(
-                            function()
-                            {
-                                verifyQualitySelection(
-                                    quality,
-                                    qualityOption,
-                                    0
-                                    );
-                            },
-                            120
-                            );
-                    },
-                    120
-                    );
+                openQualityMenu(quality, 0);
             },
             120
             );

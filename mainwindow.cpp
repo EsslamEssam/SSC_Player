@@ -2123,6 +2123,11 @@ void MainWindow::setupYouTubeControls()
                 }
 
                 m_youtubePlayer->setPlaybackQuality(qualityCode);
+
+                // Do not let QAction's automatic check mark pretend that the
+                // video changed. The new quality is checked only from the
+                // confirmed YouTube result signal.
+                updatePlaybackQualityUi(m_playbackQuality);
             }
             );
     }
