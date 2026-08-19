@@ -3,9 +3,11 @@
 #include <QWebEngineView>
 #include <QWebChannel>
 #include <QWebEnginePage>
+#include <QWebEngineScript>
 #include <QWebEngineSettings>
 #include <QUrl>
 #include <QDebug>
+#include <QStringList>
 
 
 YouTubePlayer::YouTubePlayer(
@@ -20,6 +22,7 @@ YouTubePlayer::YouTubePlayer(
     , m_pendingPauseCommand(false)
     , m_playerReady(false)
     , m_playbackRate(1.0)
+    , m_playbackQuality(QStringLiteral("auto"))
 {
     if (!m_view)
     {
@@ -55,6 +58,7 @@ YouTubePlayer::YouTubePlayer(
         m_channel
         );
 
+    installYouTubeFrameBridge();
 
     loadPlayerPage();
 }
@@ -69,6 +73,328 @@ YouTubePlayer::~YouTubePlayer()
     {
         m_view->setUrl(QUrl());
     }
+}
+
+
+void YouTubePlayer::installYouTubeFrameBridge()
+{
+    if (!m_view || !m_view->page())
+    {
+        return;
+    }
+
+    // The IFrame API no longer accepts a requested quality. The native
+    // quality menu still exists inside YouTube's child iframe, so this
+    // script provides a narrowly scoped bridge for the custom Qt button.
+    // It runs in the child frame's own DOM and keeps the native controls
+    // hidden except for the short, programmatic quality-selection action.
+    const QString source = QStringLiteral(R"JS(
+(function()
+{
+    if (window.top === window ||
+        window.__sscQualityBridgeInstalled)
+    {
+        return;
+    }
+
+    window.__sscQualityBridgeInstalled = true;
+
+    var styleId = "ssc-youtube-hidden-controls";
+    var commandClass = "ssc-quality-command";
+
+    function installStyle()
+    {
+        if (document.getElementById(styleId))
+        {
+            return;
+        }
+
+        var style = document.createElement("style");
+        style.id = styleId;
+        style.textContent =
+            ".ytp-chrome-top,"
+            + ".ytp-chrome-bottom,"
+            + ".ytp-title-link,"
+            + ".ytp-title,"
+            + ".ytp-share-button,"
+            + ".ytp-youtube-button,"
+            + ".ytp-watermark,"
+            + ".ytp-pause-overlay,"
+            + ".ytp-ce-element,"
+            + ".ytp-show-cards-title,"
+            + ".html5-endscreen,"
+            + ".ytp-upnext {"
+            + "display:none!important;"
+            + "opacity:0!important;"
+            + "visibility:hidden!important;"
+            + "pointer-events:none!important;"
+            + "}"
+            + "." + commandClass + " .ytp-chrome-bottom {"
+            + "display:block!important;"
+            + "opacity:1!important;"
+            + "visibility:visible!important;"
+            + "pointer-events:auto!important;"
+            + "}"
+            + "." + commandClass
+            + " .ytp-chrome-bottom .ytp-settings-button {"
+            + "display:block!important;"
+            + "opacity:1!important;"
+            + "visibility:visible!important;"
+            + "pointer-events:auto!important;"
+            + "}";
+
+        if (document.head)
+        {
+            document.head.appendChild(style);
+        }
+        else if (document.documentElement)
+        {
+            document.documentElement.appendChild(style);
+        }
+    }
+
+    function playerRoot()
+    {
+        return document.querySelector(".html5-video-player")
+            || document.body;
+    }
+
+    function setCommandMode(enabled)
+    {
+        var root = playerRoot();
+
+        if (!root)
+        {
+            return;
+        }
+
+        if (enabled)
+        {
+            root.classList.add(commandClass);
+        }
+        else
+        {
+            root.classList.remove(commandClass);
+        }
+    }
+
+    function isVisible(element)
+    {
+        if (!element)
+        {
+            return false;
+        }
+
+        var style = window.getComputedStyle(element);
+        var rect = element.getBoundingClientRect();
+
+        return style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0;
+    }
+
+    function itemText(element)
+    {
+        return [
+            element.getAttribute("aria-label"),
+            element.getAttribute("data-label"),
+            element.getAttribute("data-tooltip-text"),
+            element.textContent
+        ]
+            .filter(function(value)
+            {
+                return value;
+            })
+            .join(" ")
+            .trim()
+            .toLowerCase();
+    }
+
+    function findMenuItem(matcher)
+    {
+        var items = document.querySelectorAll(
+            ".ytp-menuitem, [role=\"menuitem\"]"
+            );
+
+        for (var i = 0; i < items.length; ++i)
+        {
+            if (isVisible(items[i]) &&
+                matcher.test(itemText(items[i])))
+            {
+                return items[i];
+            }
+        }
+
+        return null;
+    }
+
+    function qualityMatcher(quality)
+    {
+        switch (String(quality || "auto").toLowerCase())
+        {
+            case "small":
+                return /144p|small/i;
+
+            case "medium":
+                return /240p|medium/i;
+
+            case "large":
+                return /360p|large/i;
+
+            case "hd480":
+                return /480p|hd480/i;
+
+            case "hd720":
+                return /720p|hd720/i;
+
+            case "hd1080":
+                return /1080p|hd1080/i;
+
+            case "highres":
+                return /1440p|2160p|4320p|highres|8k/i;
+
+            case "auto":
+            default:
+                return /auto|automatic|تلقائي/i;
+        }
+    }
+
+    function reportResult(quality, success)
+    {
+        if (window.parent)
+        {
+            window.parent.postMessage(
+                {
+                    source: "ssc-youtube-frame",
+                    type: "quality-result",
+                    quality: String(quality || "auto"),
+                    success: !!success
+                },
+                "*"
+                );
+        }
+    }
+
+    function finishCommand(quality, success)
+    {
+        setCommandMode(false);
+        reportResult(quality, success);
+    }
+
+    function chooseQuality(quality, attempt)
+    {
+        installStyle();
+
+        var settingsButton =
+            document.querySelector(".ytp-settings-button");
+
+        if (!settingsButton)
+        {
+            if (attempt < 12)
+            {
+                window.setTimeout(
+                    function()
+                    {
+                        chooseQuality(quality, attempt + 1);
+                    },
+                    100
+                    );
+            }
+            else
+            {
+                finishCommand(quality, false);
+            }
+
+            return;
+        }
+
+        setCommandMode(true);
+        settingsButton.click();
+
+        window.setTimeout(
+            function()
+            {
+                var qualityItem = findMenuItem(
+                    /quality|الجودة|qualité|qualidade|qualität/i
+                    );
+
+                if (!qualityItem)
+                {
+                    finishCommand(quality, false);
+                    return;
+                }
+
+                qualityItem.click();
+
+                window.setTimeout(
+                    function()
+                    {
+                        var qualityOption = findMenuItem(
+                            qualityMatcher(quality)
+                            );
+
+                        if (!qualityOption)
+                        {
+                            finishCommand(quality, false);
+                            return;
+                        }
+
+                        qualityOption.click();
+
+                        window.setTimeout(
+                            function()
+                            {
+                                finishCommand(quality, true);
+                            },
+                            120
+                            );
+                    },
+                    120
+                    );
+            },
+            120
+            );
+    }
+
+    installStyle();
+
+    window.addEventListener(
+        "message",
+        function(event)
+        {
+            var data = event.data;
+
+            if (!data ||
+                data.source !== "ssc-player" ||
+                data.type !== "set-quality")
+            {
+                return;
+            }
+
+            chooseQuality(
+                String(data.quality || "auto"),
+                0
+                );
+        }
+        );
+})();
+)JS");
+
+    QWebEngineScript frameBridge;
+    frameBridge.setName(
+        QStringLiteral("ssc-youtube-quality-bridge")
+        );
+    frameBridge.setInjectionPoint(
+        QWebEngineScript::DocumentCreation
+        );
+    frameBridge.setWorldId(
+        QWebEngineScript::MainWorld
+        );
+    frameBridge.setRunsOnSubFrames(true);
+    frameBridge.setSourceCode(source);
+
+    m_view->page()->scripts().insert(frameBridge);
 }
 
 
@@ -176,6 +502,8 @@ var pendingPause = false;
 
 var requestedPlaybackRate = 1.0;
 
+var requestedPlaybackQuality = "auto";
+
 function notifyQtPlayerReady()
 {
     if (!youtubePlayerReady ||
@@ -252,6 +580,86 @@ function applyRequestedPlaybackRate()
             );
     }
 }
+
+function sendFrameQualityCommand(quality, attempt)
+{
+    var iframe =
+        document.querySelector("#player iframe");
+
+    if (!iframe || !iframe.contentWindow)
+    {
+        if (attempt < 20)
+        {
+            window.setTimeout(
+                function()
+                {
+                    sendFrameQualityCommand(quality, attempt + 1);
+                },
+                100
+                );
+        }
+
+        return;
+    }
+
+    iframe.contentWindow.postMessage(
+        {
+            source: "ssc-player",
+            type: "set-quality",
+            quality: quality
+        },
+        "*"
+        );
+}
+
+function applyRequestedPlaybackQuality()
+{
+    if (!player || !youtubePlayerReady)
+    {
+        return;
+    }
+
+    // Keep the old API call as a harmless fallback for older player builds.
+    // Current YouTube builds may ignore it, so the frame bridge below is the
+    // path used by the custom quality menu.
+    if (player.setPlaybackQuality)
+    {
+        player.setPlaybackQuality(
+            requestedPlaybackQuality
+            );
+    }
+
+    sendFrameQualityCommand(
+        requestedPlaybackQuality,
+        0
+        );
+}
+
+function onYouTubeFrameMessage(event)
+{
+    var data = event.data;
+
+    if (!data ||
+        data.source !== "ssc-youtube-frame" ||
+        data.type !== "quality-result" ||
+        !qtBridge)
+    {
+        return;
+    }
+
+    if (qtBridge.onJsPlaybackQualityCommandResult)
+    {
+        qtBridge.onJsPlaybackQualityCommandResult(
+            String(data.quality || "auto"),
+            !!data.success
+            );
+    }
+}
+
+window.addEventListener(
+    "message",
+    onYouTubeFrameMessage
+    );
 
 function setupQtBridge()
 {
@@ -372,7 +780,10 @@ function createPlayer()
                 {
                     autoplay: 0,
 
-                    controls: 0,
+                    // Keep the native settings menu available as the
+                    // backend for the custom quality button. The injected
+                    // child-frame stylesheet keeps it hidden from users.
+                    controls: 1,
 
                     // Keep keyboard control in the native Qt player only.
                     disablekb: 1,
@@ -400,6 +811,10 @@ function createPlayer()
 
                     onPlaybackRateChange:
                         onPlaybackRateChange,
+
+
+                    onPlaybackQualityChange:
+                        onPlaybackQualityChange,
 
 
                     onError:
@@ -501,6 +916,14 @@ function onPlaybackRateChange(event)
     }
 }
 
+function onPlaybackQualityChange(event)
+{
+    if (qtBridge && qtBridge.onJsPlaybackQualityChanged)
+    {
+        qtBridge.onJsPlaybackQualityChanged(event.data);
+    }
+}
+
 
 /* ============================================================
    Player error
@@ -554,6 +977,14 @@ function setVideo(videoId)
         applyRequestedPlaybackRate,
         250
         );
+
+    if (requestedPlaybackQuality !== "auto")
+    {
+        window.setTimeout(
+            applyRequestedPlaybackQuality,
+            500
+            );
+    }
 }
 
 
@@ -626,6 +1057,15 @@ function setVideoPlaybackRate(rate)
     requestedPlaybackRate = Number(rate);
 
     applyRequestedPlaybackRate();
+}
+
+
+function setVideoPlaybackQuality(quality)
+{
+    requestedPlaybackQuality =
+        String(quality || "auto").toLowerCase();
+
+    applyRequestedPlaybackQuality();
 }
 
 
@@ -919,6 +1359,33 @@ void YouTubePlayer::onJsPlaybackRateChanged(double rate)
     emit playbackRateChanged(rate);
 }
 
+void YouTubePlayer::onJsPlaybackQualityChanged(const QString &quality)
+{
+    const QString normalized = quality.trimmed().toLower();
+
+    if (normalized.isEmpty())
+    {
+        return;
+    }
+
+    m_playbackQuality = normalized;
+    emit playbackQualityChanged(normalized);
+}
+
+void YouTubePlayer::onJsPlaybackQualityCommandResult(
+    const QString &quality,
+    bool success)
+{
+    if (success)
+    {
+        onJsPlaybackQualityChanged(quality);
+    }
+    else
+    {
+        emit playbackQualityChangeFailed(quality);
+    }
+}
+
 void YouTubePlayer::onJsError(const QString &message)
 {
     emit error(message);
@@ -981,6 +1448,38 @@ void YouTubePlayer::setPlaybackRate(double rate)
             QString("setVideoPlaybackRate(%1);").arg(
                 QString::number(rate, 'f', 2)
                 )
+            );
+    }
+}
+
+void YouTubePlayer::setPlaybackQuality(const QString &quality)
+{
+    const QString normalized = quality.trimmed().toLower();
+
+    const QStringList supportedQualities =
+        {
+            QStringLiteral("auto"),
+            QStringLiteral("small"),
+            QStringLiteral("medium"),
+            QStringLiteral("large"),
+            QStringLiteral("hd480"),
+            QStringLiteral("hd720"),
+            QStringLiteral("hd1080"),
+            QStringLiteral("highres")
+        };
+
+    if (!supportedQualities.contains(normalized))
+    {
+        return;
+    }
+
+    m_playbackQuality = normalized;
+
+    if (m_view && m_view->page())
+    {
+        m_view->page()->runJavaScript(
+            QString("setVideoPlaybackQuality('%1');")
+                .arg(normalized)
             );
     }
 }

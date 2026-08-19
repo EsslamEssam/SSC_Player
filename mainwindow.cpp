@@ -190,6 +190,44 @@ QIcon makeSpeedIcon(const QColor &color)
     return QIcon(pixmap);
 }
 
+QIcon makeQualityIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(
+        QPen(
+            color,
+            2.0,
+            Qt::SolidLine,
+            Qt::RoundCap,
+            Qt::RoundJoin
+            )
+        );
+
+    const QList<QPair<QPointF, QPointF>> tracks =
+        {
+            {QPointF(6.0, 9.0), QPointF(26.0, 9.0)},
+            {QPointF(6.0, 16.0), QPointF(26.0, 16.0)},
+            {QPointF(6.0, 23.0), QPointF(26.0, 23.0)}
+        };
+
+    for (const auto &track : tracks)
+    {
+        painter.drawLine(track.first, track.second);
+    }
+
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+    painter.drawEllipse(QRectF(11.0, 6.0, 6.0, 6.0));
+    painter.drawEllipse(QRectF(19.0, 13.0, 6.0, 6.0));
+    painter.drawEllipse(QRectF(8.0, 20.0, 6.0, 6.0));
+
+    return QIcon(pixmap);
+}
+
 void styleControlButton(
     QAbstractButton *button,
     const QIcon &icon,
@@ -219,6 +257,53 @@ void styleControlButton(
 QString formatPlaybackRate(double rate)
 {
     return QString::number(rate, 'g', 3) + QStringLiteral("×");
+}
+
+QString formatPlaybackQuality(const QString &quality)
+{
+    const QString normalized = quality.trimmed().toLower();
+
+    if (normalized.isEmpty() || normalized == QStringLiteral("auto"))
+    {
+        return QStringLiteral("تلقائي");
+    }
+
+    if (normalized == QStringLiteral("small"))
+    {
+        return QStringLiteral("144p");
+    }
+
+    if (normalized == QStringLiteral("medium"))
+    {
+        return QStringLiteral("240p");
+    }
+
+    if (normalized == QStringLiteral("large"))
+    {
+        return QStringLiteral("360p");
+    }
+
+    if (normalized == QStringLiteral("hd480"))
+    {
+        return QStringLiteral("480p");
+    }
+
+    if (normalized == QStringLiteral("hd720"))
+    {
+        return QStringLiteral("720p");
+    }
+
+    if (normalized == QStringLiteral("hd1080"))
+    {
+        return QStringLiteral("1080p");
+    }
+
+    if (normalized == QStringLiteral("highres"))
+    {
+        return QStringLiteral("أعلى");
+    }
+
+    return quality;
 }
 }
 
@@ -1518,6 +1603,77 @@ void MainWindow::setupYouTubeControls()
         QStringLiteral("ملء الشاشة")
         );
 
+    m_qualityButton = new QToolButton(ui->controlBar);
+    m_qualityButton->setObjectName(QStringLiteral("qualityButton"));
+    m_qualityButton->setFixedSize(92, 40);
+    m_qualityButton->setIcon(makeQualityIcon(iconColor));
+    m_qualityButton->setIconSize(QSize(18, 18));
+    m_qualityButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    m_qualityButton->setPopupMode(QToolButton::InstantPopup);
+    m_qualityButton->setToolTip(
+        QStringLiteral("جودة الفيديو")
+        );
+    m_qualityButton->setAccessibleName(
+        QStringLiteral("جودة الفيديو")
+        );
+    m_qualityButton->setCursor(Qt::PointingHandCursor);
+    m_qualityButton->setFocusPolicy(Qt::StrongFocus);
+    m_qualityButton->setStyleSheet(
+        "QToolButton { background: #202b38; color: #eef4fb;"
+        "border: 1px solid #344454; border-radius: 8px;"
+        "padding: 0 8px; font-size: 13px; font-weight: 600; }"
+        "QToolButton:hover { background: #2b3b4d; border-color: #4d6982; }"
+        "QToolButton:pressed { background: #17212c; }"
+        "QToolButton:focus { border: 1px solid #72b7ff; }"
+        );
+
+    m_qualityMenu = new QMenu(m_qualityButton);
+    m_qualityMenu->setStyleSheet(
+        "QMenu { background: #1b2632; color: #eef4fb;"
+        "border: 1px solid #344454; padding: 6px; }"
+        "QMenu::item { padding: 8px 30px 8px 12px; border-radius: 6px; }"
+        "QMenu::item:selected { background: #2b4d6b; }"
+        "QMenu::item:checked { color: #8bc7ff; font-weight: 600; }"
+        );
+
+    const QList<QPair<QString, QString>> playbackQualities =
+        {
+            {QStringLiteral("auto"), QStringLiteral("تلقائي")},
+            {QStringLiteral("small"), QStringLiteral("144p")},
+            {QStringLiteral("medium"), QStringLiteral("240p")},
+            {QStringLiteral("large"), QStringLiteral("360p")},
+            {QStringLiteral("hd480"), QStringLiteral("480p")},
+            {QStringLiteral("hd720"), QStringLiteral("720p")},
+            {QStringLiteral("hd1080"), QStringLiteral("1080p")},
+            {QStringLiteral("highres"), QStringLiteral("أعلى جودة")}
+        };
+
+    for (const auto &quality : playbackQualities)
+    {
+        QAction *action =
+            m_qualityMenu->addAction(quality.second);
+
+        action->setCheckable(true);
+        action->setData(quality.first);
+
+        connect(
+            action,
+            &QAction::triggered,
+            this,
+            [this, qualityCode = quality.first]()
+            {
+                if (!m_usingYouTube || !m_youtubePlayer)
+                {
+                    return;
+                }
+
+                m_youtubePlayer->setPlaybackQuality(qualityCode);
+            }
+            );
+    }
+
+    m_qualityButton->setMenu(m_qualityMenu);
+
     m_speedButton = new QToolButton(ui->controlBar);
     m_speedButton->setObjectName(QStringLiteral("speedButton"));
     m_speedButton->setFixedSize(76, 40);
@@ -1599,13 +1755,63 @@ void MainWindow::setupYouTubeControls()
         const int fullScreenIndex =
             controlsLayout->indexOf(ui->fullScreenButton);
 
-        controlsLayout->insertWidget(
+        const int insertIndex =
             fullScreenIndex >= 0
                 ? fullScreenIndex
-                : controlsLayout->count(),
+                : controlsLayout->count();
+
+        controlsLayout->insertWidget(
+            insertIndex,
+            m_qualityButton
+            );
+
+        controlsLayout->insertWidget(
+            insertIndex + 1,
             m_speedButton
             );
     }
+
+    connect(
+        m_youtubePlayer,
+        &YouTubePlayer::playbackQualityChanged,
+        this,
+        [this](const QString &quality)
+        {
+            updatePlaybackQualityUi(quality);
+        }
+        );
+
+    connect(
+        m_youtubePlayer,
+        &YouTubePlayer::playbackQualityChangeFailed,
+        this,
+        [this](const QString &quality)
+        {
+            if (!m_qualityButton)
+            {
+                return;
+            }
+
+            m_qualityButton->setToolTip(
+                QStringLiteral("الجودة %1 غير متاحة لهذا الفيديو")
+                    .arg(formatPlaybackQuality(quality))
+                );
+
+            QTimer::singleShot(
+                2500,
+                this,
+                [this]()
+                {
+                    if (m_qualityButton)
+                    {
+                        m_qualityButton->setToolTip(
+                            QStringLiteral("جودة الفيديو")
+                            );
+                    }
+                }
+                );
+        }
+        );
 
     connect(
         m_youtubePlayer,
@@ -1618,6 +1824,7 @@ void MainWindow::setupYouTubeControls()
         );
 
     updatePlaybackRateUi(1.0);
+    updatePlaybackQualityUi(QStringLiteral("auto"));
 }
 
 
@@ -1643,6 +1850,39 @@ void MainWindow::updatePlaybackRateUi(double rate)
 }
 
 
+void MainWindow::updatePlaybackQualityUi(const QString &quality)
+{
+    m_playbackQuality = quality.trimmed().toLower();
+
+    if (m_playbackQuality.isEmpty())
+    {
+        m_playbackQuality = QStringLiteral("auto");
+    }
+
+    if (m_qualityButton)
+    {
+        m_qualityButton->setText(
+            formatPlaybackQuality(m_playbackQuality)
+            );
+    }
+
+    if (!m_qualityMenu)
+    {
+        return;
+    }
+
+    for (QAction *action : m_qualityMenu->actions())
+    {
+        action->setChecked(
+            action->data().toString().compare(
+                m_playbackQuality,
+                Qt::CaseInsensitive
+                ) == 0
+            );
+    }
+}
+
+
 void MainWindow::setPlaybackMode(bool useYouTube)
 {
     m_usingYouTube = useYouTube;
@@ -1660,6 +1900,11 @@ void MainWindow::setPlaybackMode(bool useYouTube)
     if (m_speedButton)
     {
         m_speedButton->setVisible(useYouTube);
+    }
+
+    if (m_qualityButton)
+    {
+        m_qualityButton->setVisible(useYouTube);
     }
 
     if (m_localControlBar)
@@ -1842,12 +2087,16 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         const bool speedMenuIsOpen =
             m_speedMenu && m_speedMenu->isVisible();
 
+        const bool qualityMenuIsOpen =
+            m_qualityMenu && m_qualityMenu->isVisible();
+
         // These keys belong to the application's custom video controls.
         // Consume both press and release so the embedded YouTube player
         // never receives them as native YouTube shortcuts.
         if (m_usingYouTube &&
             isVideoToggleKey &&
-            !speedMenuIsOpen)
+            !speedMenuIsOpen &&
+            !qualityMenuIsOpen)
         {
             if (event->type() == QEvent::KeyPress &&
                 !keyEvent->isAutoRepeat())

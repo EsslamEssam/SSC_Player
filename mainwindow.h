@@ -54,6 +54,10 @@ private:
         double rate
         );
 
+    void updatePlaybackQualityUi(
+        const QString &quality
+        );
+
     void setPlaybackMode(bool useYouTube);
 
     void updateVideoLayout();
@@ -105,6 +109,10 @@ private:
     QToolButton *m_speedButton = nullptr;
     QMenu *m_speedMenu = nullptr;
     double m_playbackRate = 1.0;
+
+    QToolButton *m_qualityButton = nullptr;
+    QMenu *m_qualityMenu = nullptr;
+    QString m_playbackQuality = QStringLiteral("auto");
 
 
 

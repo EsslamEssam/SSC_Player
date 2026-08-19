@@ -48,6 +48,10 @@ public:
         double rate
         );
 
+    void setPlaybackQuality(
+        const QString &quality
+        );
+
     void setFullScreen(
         bool enabled
         );
@@ -60,6 +64,11 @@ public slots:
     void onJsPositionChanged(double seconds);
     void onJsDurationChanged(double seconds);
     void onJsPlaybackRateChanged(double rate);
+    void onJsPlaybackQualityChanged(const QString &quality);
+    void onJsPlaybackQualityCommandResult(
+        const QString &quality,
+        bool success
+        );
     void onJsError(const QString &message);
 
 
@@ -85,6 +94,14 @@ signals:
         double rate
         );
 
+    void playbackQualityChanged(
+        const QString &quality
+        );
+
+    void playbackQualityChangeFailed(
+        const QString &quality
+        );
+
     void error(
         const QString &message
         );
@@ -93,6 +110,8 @@ signals:
 private:
 
     void loadPlayerPage();
+
+    void installYouTubeFrameBridge();
 
     void runJavaScript(
         const QString &script
@@ -116,6 +135,8 @@ private:
     bool m_playerReady;
 
     double m_playbackRate;
+
+    QString m_playbackQuality;
 };
 
 #endif // YOUTUBEPLAYER_H
