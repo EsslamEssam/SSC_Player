@@ -88,7 +88,7 @@ void YouTubePlayer::installYouTubeFrameBridge()
     // script provides a narrowly scoped bridge for the custom Qt button.
     // It runs in the child frame's own DOM and keeps the native controls
     // hidden except for the short, programmatic quality-selection action.
-    const QString source = QStringLiteral(R"JS(
+    const QString source = QString::fromUtf8(R"JS(
 (function()
 {
     if (window.top === window ||

@@ -25,6 +25,8 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPolygonF>
+#include <QList>
+#include <QPair>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSlider>
@@ -228,6 +230,73 @@ QIcon makeQualityIcon(const QColor &color)
     return QIcon(pixmap);
 }
 
+QIcon makeBookIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(
+        QPen(
+            color,
+            2.0,
+            Qt::SolidLine,
+            Qt::RoundCap,
+            Qt::RoundJoin
+            )
+        );
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRoundedRect(QRectF(7.0, 6.0, 18.0, 20.0), 3.0, 3.0);
+    painter.drawLine(QPointF(16.0, 7.0), QPointF(16.0, 25.0));
+    painter.drawLine(QPointF(10.0, 11.0), QPointF(13.0, 11.0));
+    painter.drawLine(QPointF(19.0, 11.0), QPointF(22.0, 11.0));
+
+    return QIcon(pixmap);
+}
+
+QIcon makeLockIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(
+        QPen(
+            color,
+            2.0,
+            Qt::SolidLine,
+            Qt::RoundCap,
+            Qt::RoundJoin
+            )
+        );
+    painter.setBrush(Qt::NoBrush);
+    painter.drawArc(QRectF(10.0, 5.0, 12.0, 13.0), 0, 180 * 16);
+    painter.setBrush(color);
+    painter.drawRoundedRect(QRectF(7.0, 13.0, 18.0, 13.0), 3.0, 3.0);
+    painter.setPen(QPen(QColor("#111b2d"), 2.0, Qt::SolidLine, Qt::RoundCap));
+    painter.drawLine(QPointF(16.0, 18.0), QPointF(16.0, 22.0));
+
+    return QIcon(pixmap);
+}
+
+QIcon makeCheckIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(color, 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawEllipse(QRectF(6.0, 6.0, 20.0, 20.0));
+    painter.drawLine(QPointF(11.0, 16.0), QPointF(15.0, 20.0));
+    painter.drawLine(QPointF(15.0, 20.0), QPointF(22.0, 12.0));
+
+    return QIcon(pixmap);
+}
+
 void styleControlButton(
     QAbstractButton *button,
     const QIcon &icon,
@@ -246,11 +315,11 @@ void styleControlButton(
     button->setCursor(Qt::PointingHandCursor);
     button->setFocusPolicy(Qt::StrongFocus);
     button->setStyleSheet(
-        "QPushButton { background: #202b38; color: #eef4fb;"
-        "border: 1px solid #344454; border-radius: 8px; padding: 0; }"
-        "QPushButton:hover { background: #2b3b4d; border-color: #4d6982; }"
-        "QPushButton:pressed { background: #17212c; }"
-        "QPushButton:focus { border: 1px solid #72b7ff; }"
+        "QPushButton { background: #17263b; color: #eef4fb;"
+        "border: 1px solid #334d6b; border-radius: 9px; padding: 0; }"
+        "QPushButton:hover { background: #234563; border-color: #5bb8ff; }"
+        "QPushButton:pressed { background: #142238; }"
+        "QPushButton:focus { border: 1px solid #8bd4ff; }"
         );
 }
 
@@ -305,6 +374,376 @@ QString formatPlaybackQuality(const QString &quality)
 
     return quality;
 }
+
+void applyProfessionalTheme(
+    Ui::MainWindow *ui,
+    QWidget *window
+    )
+{
+    if (!ui || !window)
+    {
+        return;
+    }
+
+    // The .ui file contains the original per-widget styles. Clear those
+    // visual overrides so one coherent theme can own the whole window.
+    const QList<QWidget*> styledWidgets =
+        {
+            ui->centralwidget,
+            ui->coursePanel,
+            ui->mainStack,
+            ui->coursesPage,
+            ui->courseDetailsPage,
+            ui->lessonsPage,
+            ui->coursesTitleLabel,
+            ui->courseList,
+            ui->courseNameLabel,
+            ui->courseDescription,
+            ui->activationStatusLabel,
+            ui->startCourseButton,
+            ui->contactButton,
+            ui->backToCoursesButton,
+            ui->lessonsTitleLabel,
+            ui->lessonList,
+            ui->backToDetailsButton,
+            ui->userInfoLabel,
+            ui->videoFrame,
+            ui->videoDisplay,
+            ui->controlBar,
+            ui->playButton,
+            ui->pauseButton,
+            ui->progressSlider,
+            ui->timeLabel,
+            ui->volumeSlider,
+            ui->volumeButton,
+            ui->fullScreenButton
+        };
+
+    for (QWidget *widget : styledWidgets)
+    {
+        if (widget)
+        {
+            widget->setStyleSheet(QString());
+        }
+    }
+
+    ui->horizontalLayout->setContentsMargins(16, 16, 16, 16);
+    ui->horizontalLayout->setSpacing(16);
+
+    ui->verticalLayout->setContentsMargins(14, 14, 14, 14);
+    ui->verticalLayout->setSpacing(12);
+
+    ui->verticalLayout_7->setContentsMargins(18, 18, 18, 18);
+    ui->verticalLayout_7->setSpacing(14);
+
+    ui->verticalLayout_10->setContentsMargins(18, 18, 18, 18);
+    ui->verticalLayout_10->setSpacing(14);
+
+    ui->verticalLayout_3->setContentsMargins(0, 0, 0, 0);
+    ui->horizontalLayout_5->setContentsMargins(0, 0, 0, 0);
+    ui->horizontalLayout_4->setContentsMargins(12, 10, 12, 10);
+    ui->horizontalLayout_4->setSpacing(8);
+
+    ui->courseList->setSpacing(4);
+    ui->lessonList->setSpacing(4);
+
+    ui->coursePanel->setAttribute(Qt::WA_StyledBackground, true);
+    ui->videoFrame->setAttribute(Qt::WA_StyledBackground, true);
+    ui->videoDisplay->setAttribute(Qt::WA_StyledBackground, true);
+    ui->controlBar->setAttribute(Qt::WA_StyledBackground, true);
+
+    const QString theme = QString::fromUtf8(R"QSS(
+QMainWindow#MainWindow {
+    background-color: #0b1220;
+    color: #edf3fb;
+}
+
+QWidget#centralwidget {
+    background-color: #0b1220;
+}
+
+QWidget#coursePanel {
+    background-color: #111b2d;
+    border: 1px solid #22334d;
+    border-radius: 16px;
+}
+
+QWidget#coursesPage,
+QWidget#courseDetailsPage,
+QWidget#lessonsPage,
+QStackedWidget#mainStack {
+    background-color: transparent;
+}
+
+QLabel {
+    color: #edf3fb;
+    font-family: "Segoe UI";
+}
+
+QLabel#coursesTitleLabel,
+QLabel#courseNameLabel,
+QLabel#lessonsTitleLabel {
+    color: #f6f8fc;
+    font-family: "Segoe UI";
+    font-size: 19px;
+    font-weight: 700;
+    padding: 4px 0 12px;
+}
+
+QLabel#lessonsTitleLabel {
+    font-size: 22px;
+    padding: 4px 0 8px;
+}
+
+QListWidget {
+    background-color: #0d1728;
+    color: #edf3fb;
+    border: 1px solid #22334d;
+    border-radius: 14px;
+    padding: 8px;
+    outline: none;
+    font-family: "Segoe UI";
+    font-size: 13px;
+}
+
+QListWidget::item {
+    background-color: #17243a;
+    color: #edf3fb;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 11px 12px;
+    margin: 4px 2px;
+    min-height: 42px;
+}
+
+QListWidget::item:hover {
+    background-color: #1c3150;
+    border: 1px solid #345579;
+}
+
+QListWidget::item:selected {
+    background-color: #20527f;
+    color: #ffffff;
+    border: 1px solid #5bb8ff;
+}
+
+QTextEdit#courseDescription {
+    background-color: #121f33;
+    color: #cbd8e8;
+    border: 1px solid #2a3d59;
+    border-radius: 12px;
+    padding: 12px;
+    font-family: "Segoe UI";
+    font-size: 13px;
+    selection-background-color: #2b77ae;
+    selection-color: #ffffff;
+}
+
+QTextEdit#courseDescription:focus {
+    border: 1px solid #5bb8ff;
+}
+
+QLabel#activationStatusLabel {
+    color: #63e6a7;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+QLabel#userInfoLabel {
+    color: #b7c8dc;
+    background-color: #0d1728;
+    border: 1px solid #263b59;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QPushButton {
+    color: #edf3fb;
+    background-color: #1b2b43;
+    border: 1px solid #304865;
+    border-radius: 10px;
+    padding: 9px 14px;
+    min-height: 40px;
+    font-family: "Segoe UI";
+    font-size: 13px;
+    font-weight: 600;
+}
+
+QPushButton:hover {
+    background-color: #24415f;
+    border: 1px solid #5bb8ff;
+}
+
+QPushButton:pressed {
+    background-color: #17304c;
+}
+
+QPushButton:focus {
+    border: 1px solid #76c7ff;
+}
+
+QPushButton:disabled {
+    color: #71839a;
+    background-color: #172131;
+    border: 1px solid #243247;
+}
+
+QPushButton#startCourseButton {
+    color: #071321;
+    background-color: #62c2ff;
+    border: 1px solid #8bd4ff;
+    font-weight: 700;
+}
+
+QPushButton#startCourseButton:hover {
+    background-color: #86d2ff;
+}
+
+QPushButton#startCourseButton:pressed {
+    background-color: #42a9e8;
+}
+
+QPushButton#contactButton {
+    color: #dbe9f8;
+    background-color: #1d3048;
+}
+
+QPushButton#backToCoursesButton,
+QPushButton#backToDetailsButton {
+    color: #a9bad0;
+    background-color: transparent;
+    border: 1px solid #30435d;
+}
+
+QPushButton#backToCoursesButton:hover,
+QPushButton#backToDetailsButton:hover {
+    color: #f3f8ff;
+    background-color: #182b44;
+    border: 1px solid #5bb8ff;
+}
+
+QWidget#videoFrame {
+    background-color: #080e19;
+}
+
+QFrame#videoDisplay {
+    background-color: #050810;
+    border: 1px solid #1d2b42;
+    border-radius: 16px;
+}
+
+QWidget#controlBar {
+    background-color: #111e31;
+    border: 1px solid #243753;
+    border-radius: 12px;
+}
+
+QLabel#timeLabel {
+    color: #a9bad0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QSlider::groove:horizontal {
+    height: 6px;
+    background: #273952;
+    border-radius: 3px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #5bb8ff;
+    border-radius: 3px;
+}
+
+QSlider::add-page:horizontal {
+    background: #1b2a40;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    width: 14px;
+    margin: -5px 0;
+    background: #f5fbff;
+    border: 2px solid #5bb8ff;
+    border-radius: 7px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #ffffff;
+    border: 2px solid #8bd4ff;
+}
+
+QMenuBar {
+    background-color: #0b1220;
+    color: #9fb2c9;
+    border-bottom: 1px solid #1d2c43;
+}
+
+QMenuBar::item {
+    padding: 6px 10px;
+    background: transparent;
+}
+
+QMenuBar::item:selected {
+    color: #f5f9ff;
+    background-color: #172a43;
+}
+
+QMenu {
+    background-color: #142238;
+    color: #edf3fb;
+    border: 1px solid #304865;
+    padding: 6px;
+}
+
+QMenu::item {
+    padding: 8px 28px 8px 12px;
+    border-radius: 7px;
+}
+
+QMenu::item:selected {
+    background-color: #21527e;
+}
+
+QScrollBar:vertical {
+    width: 9px;
+    background: transparent;
+    margin: 4px 2px 4px 0;
+}
+
+QScrollBar::handle:vertical {
+    min-height: 28px;
+    background: #304864;
+    border-radius: 4px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #4b7098;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+    border: none;
+}
+
+QToolTip {
+    color: #f4f8ff;
+    background-color: #172a43;
+    border: 1px solid #4a739a;
+    padding: 6px 8px;
+}
+)QSS");
+
+    // Keep dialogs such as the lesson-lock message box in the same visual
+    // world without changing any of their behavior.
+    qApp->setStyleSheet(theme);
+    window->setStyleSheet(theme);
+}
 }
 
 
@@ -315,6 +754,11 @@ MainWindow::MainWindow(QWidget *parent)
     , m_videoWidget(nullptr)
 {
     ui->setupUi(this);
+
+    applyProfessionalTheme(
+        ui,
+        this
+        );
 
     //يوتيوب
     m_youtubeView =
@@ -1158,15 +1602,18 @@ const QList<Course>& courses = CourseManager::instance().getCourses();
         ? "Activated"
         : "Not Activated";
 
-        QString icon = course.isActivated()
-                           ? "📘"
-                           : "🔒";
-
         QListWidgetItem *item =
             new QListWidgetItem(
-                icon + "  " + course.getName()
-                + "\n     " + status
+                course.getName()
+                + "\n"
+                + status
                 );
+
+        item->setIcon(
+            course.isActivated()
+                ? makeBookIcon(QColor("#67c8ff"))
+                : makeLockIcon(QColor("#ffbf69"))
+            );
 
         item->setData(Qt::UserRole, course.getId());
 
@@ -1208,9 +1655,11 @@ const QList<Course>& courses = CourseManager::instance().getCourses();
                 // License status
                 if (activated)
                 {
-                    ui->activationStatusLabel->setText("✓ Activated");
+                    ui->activationStatusLabel->setText("Activated");
                     ui->activationStatusLabel->setStyleSheet(
-                        "QLabel { color: #00C853; font-weight: bold; }"
+                        "QLabel { color: #63e6a7; background: transparent;"
+                        "font-family: 'Segoe UI'; font-size: 12px;"
+                        "font-weight: 700; }"
                         );
 
                     ui->startCourseButton->setVisible(true);
@@ -1218,9 +1667,11 @@ const QList<Course>& courses = CourseManager::instance().getCourses();
                 }
                 else
                 {
-                    ui->activationStatusLabel->setText("🔒 Not Activated");
+                    ui->activationStatusLabel->setText("Not Activated");
                     ui->activationStatusLabel->setStyleSheet(
-                        "QLabel { color: #FF9800; font-weight: bold; }"
+                        "QLabel { color: #ffbf69; background: transparent;"
+                        "font-family: 'Segoe UI'; font-size: 12px;"
+                        "font-weight: 700; }"
                         );
 
                     ui->startCourseButton->setVisible(false);
@@ -1270,32 +1721,31 @@ const QList<Course>& courses = CourseManager::instance().getCourses();
 
 
 
-                    QString icon;
+                    QListWidgetItem *item =
+                        new QListWidgetItem(
+                            lesson.getTitle()
+                            + "\n"
+                            + lesson.getDuration()
+                            );
 
-
-                    if(completed)
+                    if (completed)
                     {
-                        icon = "✅";
+                        item->setIcon(
+                            makeCheckIcon(QColor("#63e6a7"))
+                            );
                     }
-                    else if(unlocked)
+                    else if (unlocked)
                     {
-                        icon = "▶";
+                        item->setIcon(
+                            makePlayIcon(QColor("#67c8ff"))
+                            );
                     }
                     else
                     {
-                        icon = "🔒";
-                    }
-
-
-
-                    QListWidgetItem *item =
-                        new QListWidgetItem(
-                            icon
-                            + "  "
-                            + lesson.getTitle()
-                            + "\n     "
-                            + lesson.getDuration()
+                        item->setIcon(
+                            makeLockIcon(QColor("#ffbf69"))
                             );
+                    }
 
 
                     item->setData(
@@ -1445,13 +1895,13 @@ void MainWindow::setupLocalControls()
     m_localControlBar->setObjectName("localControlBar");
     m_localControlBar->setAttribute(Qt::WA_StyledBackground, true);
     m_localControlBar->setStyleSheet(
-        "QWidget { background-color: #1e1e1e; }"
-        "QPushButton { background-color: #2b2b2b; color: white;"
-        "border: 1px solid #444444; border-radius: 6px;"
-        "font-size: 14px; }"
-        "QPushButton:hover { background-color: #3d3d3d; }"
-        "QPushButton:pressed { background-color: #555555; }"
-        "QLabel { color: white; font-size: 12px; }"
+        "QWidget { background-color: #111e31; }"
+        "QPushButton { background-color: #17263b; color: #eef4fb;"
+        "border: 1px solid #334d6b; border-radius: 9px;"
+        "font-size: 13px; }"
+        "QPushButton:hover { background-color: #234563; }"
+        "QPushButton:pressed { background-color: #142238; }"
+        "QLabel { color: #a9bad0; font-size: 12px; }"
         );
 
     m_localControlBar->setGeometry(
@@ -1619,21 +2069,21 @@ void MainWindow::setupYouTubeControls()
     m_qualityButton->setCursor(Qt::PointingHandCursor);
     m_qualityButton->setFocusPolicy(Qt::StrongFocus);
     m_qualityButton->setStyleSheet(
-        "QToolButton { background: #202b38; color: #eef4fb;"
-        "border: 1px solid #344454; border-radius: 8px;"
+        "QToolButton { background: #17263b; color: #eef4fb;"
+        "border: 1px solid #334d6b; border-radius: 9px;"
         "padding: 0 8px; font-size: 13px; font-weight: 600; }"
-        "QToolButton:hover { background: #2b3b4d; border-color: #4d6982; }"
-        "QToolButton:pressed { background: #17212c; }"
-        "QToolButton:focus { border: 1px solid #72b7ff; }"
+        "QToolButton:hover { background: #234563; border-color: #5bb8ff; }"
+        "QToolButton:pressed { background: #142238; }"
+        "QToolButton:focus { border: 1px solid #8bd4ff; }"
         );
 
     m_qualityMenu = new QMenu(m_qualityButton);
     m_qualityMenu->setStyleSheet(
-        "QMenu { background: #1b2632; color: #eef4fb;"
-        "border: 1px solid #344454; padding: 6px; }"
-        "QMenu::item { padding: 8px 30px 8px 12px; border-radius: 6px; }"
-        "QMenu::item:selected { background: #2b4d6b; }"
-        "QMenu::item:checked { color: #8bc7ff; font-weight: 600; }"
+        "QMenu { background: #142238; color: #eef4fb;"
+        "border: 1px solid #304865; padding: 6px; }"
+        "QMenu::item { padding: 8px 30px 8px 12px; border-radius: 7px; }"
+        "QMenu::item:selected { background: #21527e; }"
+        "QMenu::item:checked { color: #8bd4ff; font-weight: 600; }"
         );
 
     const QList<QPair<QString, QString>> playbackQualities =
@@ -1690,21 +2140,21 @@ void MainWindow::setupYouTubeControls()
     m_speedButton->setCursor(Qt::PointingHandCursor);
     m_speedButton->setFocusPolicy(Qt::StrongFocus);
     m_speedButton->setStyleSheet(
-        "QToolButton { background: #202b38; color: #eef4fb;"
-        "border: 1px solid #344454; border-radius: 8px;"
+        "QToolButton { background: #17263b; color: #eef4fb;"
+        "border: 1px solid #334d6b; border-radius: 9px;"
         "padding: 0 8px; font-size: 13px; font-weight: 600; }"
-        "QToolButton:hover { background: #2b3b4d; border-color: #4d6982; }"
-        "QToolButton:pressed { background: #17212c; }"
-        "QToolButton:focus { border: 1px solid #72b7ff; }"
+        "QToolButton:hover { background: #234563; border-color: #5bb8ff; }"
+        "QToolButton:pressed { background: #142238; }"
+        "QToolButton:focus { border: 1px solid #8bd4ff; }"
         );
 
     m_speedMenu = new QMenu(m_speedButton);
     m_speedMenu->setStyleSheet(
-        "QMenu { background: #1b2632; color: #eef4fb;"
-        "border: 1px solid #344454; padding: 6px; }"
-        "QMenu::item { padding: 8px 30px 8px 12px; border-radius: 6px; }"
-        "QMenu::item:selected { background: #2b4d6b; }"
-        "QMenu::item:checked { color: #8bc7ff; font-weight: 600; }"
+        "QMenu { background: #142238; color: #eef4fb;"
+        "border: 1px solid #304865; padding: 6px; }"
+        "QMenu::item { padding: 8px 30px 8px 12px; border-radius: 7px; }"
+        "QMenu::item:selected { background: #21527e; }"
+        "QMenu::item:checked { color: #8bd4ff; font-weight: 600; }"
         );
 
     const QList<double> playbackRates =
