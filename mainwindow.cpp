@@ -37,7 +37,9 @@
 
 namespace
 {
-constexpr auto kDefaultYouTubeVideoId = "LYBNEWuSP04";
+// Temporary test video used by every lesson while YouTube playback is being verified.
+constexpr auto kDefaultYouTubeVideoId = "clR1RITS18E";
+constexpr bool kUseSingleYouTubeTestVideo = true;
 
 QString youtubeVideoIdFromValue(const QString &value)
 {
@@ -1104,11 +1106,14 @@ const QList<Course>& courses = CourseManager::instance().getCourses();
 
             setPlaybackMode(true);
 
-            m_youtubePlayer->loadVideo(
-                youtubeVideoIdFromValue(
-                    lesson->getVideoUrl()
-                    )
-                );
+            const QString youtubeVideoId =
+                kUseSingleYouTubeTestVideo
+                    ? QString::fromLatin1(kDefaultYouTubeVideoId)
+                    : youtubeVideoIdFromValue(
+                          lesson->getVideoUrl()
+                          );
+
+            m_youtubePlayer->loadVideo(youtubeVideoId);
 
             return;
         }
