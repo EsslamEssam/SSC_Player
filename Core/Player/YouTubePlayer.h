@@ -98,6 +98,12 @@ private:
 
     QString m_videoId;
 
+    bool m_pageLoaded;
+
+    bool m_pendingPlayCommand;
+
+    bool m_pendingPauseCommand;
+
     bool m_playerReady;
 };
 

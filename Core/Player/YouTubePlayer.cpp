@@ -13,6 +13,10 @@ YouTubePlayer::YouTubePlayer(
     : QObject(parent)
     , m_view(view)
     , m_channel(nullptr)
+    , m_videoId()
+    , m_pageLoaded(false)
+    , m_pendingPlayCommand(false)
+    , m_pendingPauseCommand(false)
     , m_playerReady(false)
 {
     if (!m_view)
@@ -48,6 +52,7 @@ YouTubePlayer::YouTubePlayer(
 
 YouTubePlayer::~YouTubePlayer()
 {
+    m_pageLoaded = false;
     m_playerReady = false;
 
     if (m_view)
@@ -154,6 +159,10 @@ var qtReadyNotified = false;
 var progressTimer = null;
 
 var lastReportedDuration = -1;
+
+var pendingPlay = false;
+
+var pendingPause = false;
 
 function notifyQtPlayerReady()
 {
@@ -382,6 +391,18 @@ function onPlayerReady(event)
 
     youtubePlayerReady = true;
 
+    if (pendingPlay)
+    {
+        pendingPlay = false;
+        player.playVideo();
+    }
+
+    if (pendingPause)
+    {
+        pendingPause = false;
+        player.pauseVideo();
+    }
+
     startProgressReporting();
 
     notifyQtPlayerReady();
@@ -494,18 +515,28 @@ function setVideo(videoId)
 
 function playVideo()
 {
-    if (player)
+    if (player && youtubePlayerReady)
     {
         player.playVideo();
+    }
+    else
+    {
+        pendingPlay = true;
+        pendingPause = false;
     }
 }
 
 
 function pauseVideo()
 {
-    if (player)
+    if (player && youtubePlayerReady)
     {
         player.pauseVideo();
+    }
+    else
+    {
+        pendingPause = true;
+        pendingPlay = false;
     }
 }
 
@@ -610,6 +641,35 @@ loadYouTubeAPI();
             qDebug()
                 << "[YOUTUBE]"
                 << "Player HTML loaded.";
+
+            m_pageLoaded = true;
+
+            if (!m_videoId.isEmpty())
+            {
+                runJavaScript(
+                    QString(
+                        "requestedVideoId = '%1';"
+                        "setVideo('%1');"
+                        )
+                        .arg(m_videoId)
+                    );
+            }
+
+            if (m_pendingPlayCommand)
+            {
+                m_pendingPlayCommand = false;
+                runJavaScript("playVideo();");
+            }
+
+            if (m_pendingPauseCommand)
+            {
+                m_pendingPauseCommand = false;
+                runJavaScript("pauseVideo();");
+            }
+
+            // Loading the page is enough to start the existing
+            // YouTube flow. WebChannel is only used for telemetry.
+            emit ready();
         }
         );
 
@@ -641,6 +701,11 @@ void YouTubePlayer::loadVideo(
         << "[YOUTUBE]"
         << "Loading video:"
         << videoId;
+
+    if (!m_pageLoaded)
+    {
+        return;
+    }
 
 
     QString script =
@@ -675,12 +740,13 @@ void YouTubePlayer::loadVideo(
 //}
 
 
-//void YouTubePlayer::stop()
-//{
-//    runJavaScript(
-//        "stopVideo();"
-//        );
-//}
+void YouTubePlayer::stop()
+{
+    if (m_pageLoaded && m_view && m_view->page())
+    {
+        m_view->page()->runJavaScript("stopVideo();");
+    }
+}
 
 
 void YouTubePlayer::setPosition(
@@ -755,13 +821,7 @@ void YouTubePlayer::runJavaScript(
 //Gemini
 void YouTubePlayer::onJsReady()
 {
-    if (m_playerReady)
-    {
-        return;
-    }
-
     m_playerReady = true;
-    emit ready();
 }
 
 void YouTubePlayer::onJsStateChanged(int state)
@@ -792,14 +852,28 @@ void YouTubePlayer::onJsError(const QString &message)
 }
 
 void YouTubePlayer::play() {
+    if (!m_pageLoaded)
+    {
+        m_pendingPlayCommand = true;
+        m_pendingPauseCommand = false;
+        return;
+    }
+
     if (m_view && m_view->page()) {
-        m_view->page()->runJavaScript("if(player && player.playVideo) { player.playVideo(); }");
+        m_view->page()->runJavaScript("playVideo();");
     }
 }
 
 void YouTubePlayer::pause() {
+    if (!m_pageLoaded)
+    {
+        m_pendingPauseCommand = true;
+        m_pendingPlayCommand = false;
+        return;
+    }
+
     if (m_view && m_view->page()) {
-        m_view->page()->runJavaScript("if(player && player.pauseVideo) { player.pauseVideo(); }");
+        m_view->page()->runJavaScript("pauseVideo();");
     }
 }
 

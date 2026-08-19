@@ -25,6 +25,8 @@ QT_END_NAMESPACE
 
 class VideoPlayer;
 class QVideoWidget;
+class QPushButton;
+class QSlider;
 
 class MainWindow : public QMainWindow
 {
@@ -42,6 +44,10 @@ public:
 
 private:
 
+    void setupLocalControls();
+
+    void setPlaybackMode(bool useYouTube);
+
     Ui::MainWindow *ui;
 
     QWidget *volumePopupWindow;
@@ -52,7 +58,11 @@ private:
 
     YouTubePlayer *m_youtubePlayer;
 
+    // YouTube is the active source. Set through setPlaybackMode(false)
+    // when the preserved local/encrypted path is intentionally re-enabled.
     bool m_usingYouTube = true;
+
+    bool m_youtubeIsPlaying = false;
 
     QString currentCourseId;
 
@@ -71,6 +81,16 @@ private:
     qint64 m_maxWatchedPosition = 0;
 
     qint64 m_pendingSeekPosition = 0;
+
+    // Local controls stay available for a future local/encrypted mode.
+    // They are hidden while YouTube is the primary player.
+    QWidget *m_localControlBar = nullptr;
+    QPushButton *m_localPlayButton = nullptr;
+    QPushButton *m_localPauseButton = nullptr;
+    QPushButton *m_localFullScreenButton = nullptr;
+    QSlider *m_localProgressSlider = nullptr;
+    QLabel *m_localTimeLabel = nullptr;
+    QSlider *m_localVolumeSlider = nullptr;
 
 
 

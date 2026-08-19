@@ -3,6 +3,7 @@
 
 #include <QDebug>
 #include <QTimer>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QVideoWidget>
 #include <utility>
@@ -15,6 +16,9 @@
 #include <QPoint>
 #include <QMediaPlayer>
 #include <QBuffer>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QSlider>
 
 #include "Core/Managers/CourseManager.h"
 #include "Core/Managers/LessonManager.h"
@@ -29,6 +33,46 @@
 #include "Core/Crypto/VideoCryptoManager.h"
 #include "Core/Crypto/EncryptedVideoDevice.h"
 #include "Core/Offline/OfflineCacheManager.h"
+
+
+namespace
+{
+constexpr auto kDefaultYouTubeVideoId = "LYBNEWuSP04";
+
+QString youtubeVideoIdFromValue(const QString &value)
+{
+    const QString trimmedValue = value.trimmed();
+
+    const QRegularExpression idPattern(
+        QStringLiteral("^[A-Za-z0-9_-]{11}$")
+        );
+
+    if (idPattern.match(trimmedValue).hasMatch())
+    {
+        return trimmedValue;
+    }
+
+    const QRegularExpression urlPattern(
+        QStringLiteral(
+            "(?:v=|youtu\\.be/|youtube(?:-nocookie)?\\.com/"
+            "(?:embed/|shorts/))([A-Za-z0-9_-]{11})"
+            )
+        );
+
+    const QRegularExpressionMatch match =
+        urlPattern.match(trimmedValue);
+
+    if (match.hasMatch())
+    {
+        return match.captured(1);
+    }
+
+    // Existing lesson records still contain local/encrypted identifiers.
+    // Keep the current test video as a safe YouTube fallback until each
+    // lesson receives its real YouTube ID.
+    return QString::fromLatin1(kDefaultYouTubeVideoId);
+}
+}
 
 
 
@@ -73,6 +117,9 @@ MainWindow::MainWindow(QWidget *parent)
             // إخفاء شاشة الفيديو المحلي
             ui->videoDisplay->show();
 
+            setPlaybackMode(true);
+            m_youtubeIsPlaying = false;
+
             if (m_videoWidget)
             {
                 m_videoWidget->hide();
@@ -96,6 +143,7 @@ MainWindow::MainWindow(QWidget *parent)
                 overlay = new QWidget(m_youtubeView);
                 overlay->setObjectName("youtubeOverlay");
             }
+            overlay->installEventFilter(this);
             overlay->setStyleSheet("background: transparent;");
             overlay->setGeometry(0, 0, m_youtubeView->width(), m_youtubeView->height());
             overlay->setAttribute(Qt::WA_TransparentForMouseEvents, false);
@@ -104,7 +152,9 @@ MainWindow::MainWindow(QWidget *parent)
             // -------------------------------------------------------------
 
             // تشغيل الفيديو المطلوب
-            m_youtubePlayer->loadVideo("LYBNEWuSP04");
+            m_youtubePlayer->loadVideo(
+                QString::fromLatin1(kDefaultYouTubeVideoId)
+                );
         }
         );
 
@@ -127,108 +177,99 @@ MainWindow::MainWindow(QWidget *parent)
     //يوتيوب
 
 
-    if (!QFile::exists("D:/SCCP_Player/TestVideos/test.enc"))
+    // ================================================================
+    // LOCAL / ENCRYPTED PATH (parked while YouTube is primary)
+    // ================================================================
+    // This block is intentionally kept intact for a future local mode.
+    if (!m_usingYouTube)
     {
-        bool videoEncrypted =
-            EncryptionManager::encryptVideoFile(
-                "D:/SCCP_Player/TestVideos/test.mp4",
-                "D:/SCCP_Player/TestVideos/test.enc",
-                "lesson_001"
-                );
+        if (!QFile::exists("D:/SCCP_Player/TestVideos/test.enc"))
+        {
+            bool videoEncrypted =
+                EncryptionManager::encryptVideoFile(
+                    "D:/SCCP_Player/TestVideos/test.mp4",
+                    "D:/SCCP_Player/TestVideos/test.enc",
+                    "lesson_001"
+                    );
 
-        qDebug()
-            << "Video Encrypt:"
-            << videoEncrypted;
-    }
-    else
-    {
-        qDebug()
-        << "Encrypted video already exists. Skipping encryption.";
-    }
-
-
-
-    QString testLessonId =
-        "offline_test";
-
-    QString encryptedSource =
-        "D:/SCCP_Player/TestVideos/test.enc";
-
-
-    bool offlineReady =
-        OfflineCacheManager::prepareLesson(
-            testLessonId,
-            encryptedSource
-            );
-
-
-    qDebug()
-        << "Offline Ready:"
-        << offlineReady;
-
-
-    QString offlinePath =
-        OfflineCacheManager::lessonFilePath(
-            testLessonId
-            );
-
-
-    qDebug()
-        << "Offline Path:"
-        << offlinePath;
-
-
-    if (offlineReady)
-    {
-        qDebug()
-        << "Offline video is valid.";
-
-
-        EncryptedVideoDevice* device =
-            new EncryptedVideoDevice(this);
-
-
-        bool opened =
-            device->openEncryptedVideo(
-                offlinePath
-                );
-
-
-        qDebug()
-            << "Offline Encrypted Device Open:"
-            << opened;
-
-
-        if (opened)
+            qDebug()
+                << "Video Encrypt:"
+                << videoEncrypted;
+        }
+        else
         {
             qDebug()
-            << "Offline Video Size:"
-            << device->size();
-
-
-            QByteArray testData =
-                device->read(1024);
-
-
-            qDebug()
-                << "Offline Read Size:"
-                << testData.size();
-
-
-            bool seeked =
-                device->seek(0);
-
-
-            qDebug()
-                << "Offline Seek:"
-                << seeked;
-
+                << "Encrypted video already exists. Skipping encryption.";
         }
-    }
-    else
-    {
+
+        QString testLessonId =
+            "offline_test";
+
+        QString encryptedSource =
+            "D:/SCCP_Player/TestVideos/test.enc";
+
+        bool offlineReady =
+            OfflineCacheManager::prepareLesson(
+                testLessonId,
+                encryptedSource
+                );
+
         qDebug()
-        << "Offline video is not available.";
+            << "Offline Ready:"
+            << offlineReady;
+
+        QString offlinePath =
+            OfflineCacheManager::lessonFilePath(
+                testLessonId
+                );
+
+        qDebug()
+            << "Offline Path:"
+            << offlinePath;
+
+        if (offlineReady)
+        {
+            qDebug()
+                << "Offline video is valid.";
+
+            EncryptedVideoDevice* device =
+                new EncryptedVideoDevice(this);
+
+            bool opened =
+                device->openEncryptedVideo(
+                    offlinePath
+                    );
+
+            qDebug()
+                << "Offline Encrypted Device Open:"
+                << opened;
+
+            if (opened)
+            {
+                qDebug()
+                    << "Offline Video Size:"
+                    << device->size();
+
+                QByteArray testData =
+                    device->read(1024);
+
+                qDebug()
+                    << "Offline Read Size:"
+                    << testData.size();
+
+                bool seeked =
+                    device->seek(0);
+
+                qDebug()
+                    << "Offline Seek:"
+                    << seeked;
+            }
+        }
+        else
+        {
+            qDebug()
+                << "Offline video is not available.";
+        }
     }
 
 
@@ -345,20 +386,19 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_videoPlayer = new VideoPlayer(this);
 
+    // The local controls are kept separate and parked while YouTube is primary.
+    setupLocalControls();
+
     connect(
         ui->playButton,
         &QPushButton::clicked,
         this,
         [this]()
         {
-            if (m_usingYouTube)
-            {
-                m_youtubePlayer->play();
-            }
-            else
-            {
-                m_videoPlayer->play();
-            }
+            if (!m_usingYouTube || !m_youtubePlayer)
+                return;
+
+            m_youtubePlayer->play();
         }
         );
 
@@ -369,14 +409,10 @@ MainWindow::MainWindow(QWidget *parent)
         this,
         [this]()
         {
-            if (m_usingYouTube)
-            {
-                m_youtubePlayer->pause();
-            }
-            else
-            {
-                m_videoPlayer->pause();
-            }
+            if (!m_usingYouTube || !m_youtubePlayer)
+                return;
+
+            m_youtubePlayer->pause();
         }
         );
 
@@ -444,16 +480,10 @@ MainWindow::MainWindow(QWidget *parent)
         this,
         [this](int value)
         {
-            if (m_usingYouTube)
-            {
-                m_youtubePlayer->setVolume(value);
-            }
-            else
-            {
-                m_videoPlayer->setVolume(
-                    value / 100.0f
-                    );
-            }
+            if (!m_usingYouTube || !m_youtubePlayer)
+                return;
+
+            m_youtubePlayer->setVolume(value);
         }
         );
 
@@ -463,7 +493,16 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             [=](qint64 duration)
             {
-                ui->progressSlider->setMaximum(duration);
+                if (m_usingYouTube)
+                    return;
+
+                if (m_localProgressSlider)
+                {
+                    m_localProgressSlider->setMinimum(0);
+                    m_localProgressSlider->setMaximum(
+                        static_cast<int>(duration)
+                        );
+                }
             });
 
 
@@ -487,6 +526,19 @@ MainWindow::MainWindow(QWidget *parent)
                 "00:00 / "
                 + formatTime(duration)
                 );
+
+            if (m_pendingSeekPosition > 0)
+            {
+                const qint64 resumePosition =
+                    qMin(m_pendingSeekPosition, duration);
+
+                m_pendingSeekPosition = 0;
+
+                if (resumePosition > 0)
+                {
+                    m_youtubePlayer->setPosition(resumePosition);
+                }
+            }
         }
         );
 
@@ -496,9 +548,17 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             [=](qint64 position)
             {
+                if (m_usingYouTube)
+                    return;
+
                 if (!m_isSeeking)
                 {
-                    ui->progressSlider->setValue(position);
+                    if (m_localProgressSlider)
+                    {
+                        m_localProgressSlider->setValue(
+                            static_cast<int>(position)
+                            );
+                    }
                 }
 
 
@@ -570,6 +630,8 @@ MainWindow::MainWindow(QWidget *parent)
             if (!m_usingYouTube)
                 return;
 
+            m_youtubeIsPlaying = true;
+
             qDebug()
                 << "[YOUTUBE CONTROL]"
                 << "Playing";
@@ -585,6 +647,8 @@ MainWindow::MainWindow(QWidget *parent)
         {
             if (!m_usingYouTube)
                 return;
+
+            m_youtubeIsPlaying = false;
 
             qDebug()
                 << "[YOUTUBE CONTROL]"
@@ -602,6 +666,8 @@ MainWindow::MainWindow(QWidget *parent)
             if (!m_usingYouTube)
                 return;
 
+            m_youtubeIsPlaying = false;
+
             qDebug()
                 << "[YOUTUBE CONTROL]"
                 << "Ended";
@@ -615,6 +681,9 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             [=](int position)
             {
+                if (!m_usingYouTube)
+                    return;
+
                 qDebug()
                 << "Slider to:"
                 << position
@@ -637,6 +706,9 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             [=]()
             {
+                if (!m_usingYouTube)
+                    return;
+
                 m_isSeeking = true;
             });
 
@@ -649,31 +721,12 @@ MainWindow::MainWindow(QWidget *parent)
         {
             m_isSeeking = false;
 
+            if (!m_usingYouTube)
+                return;
+
             qint64 position =
                 ui->progressSlider->value();
 
-            // ==========================================
-            // YouTube
-            // ==========================================
-            if (m_usingYouTube)
-            {
-                if (position > m_maxWatchedPosition)
-                {
-                    position = m_maxWatchedPosition;
-
-                    ui->progressSlider->setValue(
-                        static_cast<int>(position)
-                        );
-                }
-
-                m_youtubePlayer->setPosition(position);
-
-                return;
-            }
-
-            // ==========================================
-            // Local Video
-            // ==========================================
             if (position > m_maxWatchedPosition)
             {
                 position = m_maxWatchedPosition;
@@ -683,8 +736,67 @@ MainWindow::MainWindow(QWidget *parent)
                     );
             }
 
-            m_videoPlayer->setPosition(position);
+            if (m_youtubePlayer)
+            {
+                m_youtubePlayer->setPosition(position);
+            }
         });
+
+
+    // ================================================================
+    // LOCAL CONTROLS (kept separate; hidden while YouTube is primary)
+    // ================================================================
+    connect(m_localProgressSlider,
+            &QSlider::sliderMoved,
+            this,
+            [this](int position)
+            {
+                if (m_usingYouTube)
+                    return;
+
+                if (position > m_maxWatchedPosition)
+                {
+                    m_localProgressSlider->setValue(
+                        static_cast<int>(m_maxWatchedPosition)
+                        );
+                }
+            });
+
+    connect(m_localProgressSlider,
+            &QSlider::sliderPressed,
+            this,
+            [this]()
+            {
+                if (!m_usingYouTube)
+                {
+                    m_isSeeking = true;
+                }
+            });
+
+    connect(m_localProgressSlider,
+            &QSlider::sliderReleased,
+            this,
+            [this]()
+            {
+                m_isSeeking = false;
+
+                if (m_usingYouTube || !m_videoPlayer)
+                    return;
+
+                qint64 position =
+                    m_localProgressSlider->value();
+
+                if (position > m_maxWatchedPosition)
+                {
+                    position = m_maxWatchedPosition;
+
+                    m_localProgressSlider->setValue(
+                        static_cast<int>(position)
+                        );
+                }
+
+                m_videoPlayer->setPosition(position);
+            });
 
 
     connect(m_videoPlayer,
@@ -692,11 +804,17 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             [=](qint64 duration)
             {
+                if (m_usingYouTube)
+                    return;
+
                 m_videoDuration = duration;
 
-                ui->timeLabel->setText(
-                    "00:00 / " + formatTime(duration)
-                    );
+                if (m_localTimeLabel)
+                {
+                    m_localTimeLabel->setText(
+                        "00:00 / " + formatTime(duration)
+                        );
+                }
             });
 
 
@@ -705,11 +823,17 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             [=](qint64 position)
             {
-                ui->timeLabel->setText(
-                    formatTime(position)
-                    + " / "
-                    + formatTime(m_videoDuration)
-                    );
+                if (m_usingYouTube)
+                    return;
+
+                if (m_localTimeLabel)
+                {
+                    m_localTimeLabel->setText(
+                        formatTime(position)
+                        + " / "
+                        + formatTime(m_videoDuration)
+                        );
+                }
             });
 
 
@@ -718,6 +842,9 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             [=]()
             {
+                if (m_usingYouTube)
+                    return;
+
                 if(m_pendingSeekPosition > 0)
                 {
                     qDebug()
@@ -960,6 +1087,35 @@ const QList<Course>& courses = CourseManager::instance().getCourses();
         m_maxWatchedPosition = prog.lastPosition();
         m_pendingSeekPosition = prog.lastPosition();
 
+        // ============================================================
+        // YouTube is the active source.
+        // The local/encrypted path below remains intact for re-enabling
+        // the local mode later, but must not run in the current mode.
+        // ============================================================
+        if (m_usingYouTube)
+        {
+            m_videoDuration = 0;
+            m_youtubeIsPlaying = false;
+
+            ui->progressSlider->setMinimum(0);
+            ui->progressSlider->setMaximum(0);
+            ui->progressSlider->setValue(0);
+            ui->timeLabel->setText("00:00 / 00:00");
+
+            setPlaybackMode(true);
+
+            m_youtubePlayer->loadVideo(
+                youtubeVideoIdFromValue(
+                    lesson->getVideoUrl()
+                    )
+                );
+
+            return;
+        }
+
+        // ============================================================
+        // LOCAL / ENCRYPTED PLAYBACK (preserved for future local mode)
+        // ============================================================
         VideoManager vm;
 
         QString encryptedPath =
@@ -1021,6 +1177,181 @@ const QList<Course>& courses = CourseManager::instance().getCourses();
 } // 👈 قفلة دالة الـ Constructor (MainWindow::MainWindow)
 
 
+void MainWindow::setupLocalControls()
+{
+    if (m_localControlBar || !ui || !ui->videoFrame)
+        return;
+
+    // This bar is deliberately separate from the active YouTube controls.
+    // It remains hidden until the local/encrypted mode is explicitly enabled.
+    m_localControlBar = new QWidget(ui->videoFrame);
+    m_localControlBar->setObjectName("localControlBar");
+    m_localControlBar->setAttribute(Qt::WA_StyledBackground, true);
+    m_localControlBar->setStyleSheet(
+        "QWidget { background-color: #1e1e1e; }"
+        "QPushButton { background-color: #2b2b2b; color: white;"
+        "border: 1px solid #444444; border-radius: 6px;"
+        "font-size: 14px; }"
+        "QPushButton:hover { background-color: #3d3d3d; }"
+        "QPushButton:pressed { background-color: #555555; }"
+        "QLabel { color: white; font-size: 12px; }"
+        );
+
+    m_localControlBar->setGeometry(
+        ui->controlBar->geometry()
+        );
+
+    QHBoxLayout *layout =
+        new QHBoxLayout(m_localControlBar);
+
+    layout->setContentsMargins(10, 0, 10, 0);
+    layout->setSpacing(8);
+
+    m_localPlayButton =
+        new QPushButton(QStringLiteral("▶"), m_localControlBar);
+    m_localPlayButton->setObjectName("localPlayButton");
+    m_localPlayButton->setFixedSize(45, 40);
+
+    m_localPauseButton =
+        new QPushButton(QStringLiteral("⏸"), m_localControlBar);
+    m_localPauseButton->setObjectName("localPauseButton");
+    m_localPauseButton->setFixedSize(45, 40);
+
+    m_localProgressSlider =
+        new QSlider(Qt::Horizontal, m_localControlBar);
+    m_localProgressSlider->setObjectName("localProgressSlider");
+    m_localProgressSlider->setRange(0, 0);
+
+    m_localTimeLabel =
+        new QLabel(QStringLiteral("00:00 / 00:00"), m_localControlBar);
+    m_localTimeLabel->setObjectName("localTimeLabel");
+    m_localTimeLabel->setMinimumWidth(100);
+    m_localTimeLabel->setAlignment(Qt::AlignCenter);
+
+    m_localVolumeSlider =
+        new QSlider(Qt::Horizontal, m_localControlBar);
+    m_localVolumeSlider->setObjectName("localVolumeSlider");
+    m_localVolumeSlider->setRange(0, 100);
+    m_localVolumeSlider->setValue(50);
+    m_localVolumeSlider->setFixedWidth(120);
+
+    m_localFullScreenButton =
+        new QPushButton(QStringLiteral("⛶"), m_localControlBar);
+    m_localFullScreenButton->setObjectName("localFullScreenButton");
+    m_localFullScreenButton->setFixedSize(45, 40);
+
+    layout->addWidget(m_localPlayButton);
+    layout->addWidget(m_localPauseButton);
+    layout->addWidget(m_localProgressSlider, 1);
+    layout->addWidget(m_localTimeLabel);
+    layout->addWidget(m_localVolumeSlider);
+    layout->addWidget(m_localFullScreenButton);
+
+    connect(
+        m_localPlayButton,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+            if (!m_usingYouTube && m_videoPlayer)
+            {
+                m_videoPlayer->play();
+            }
+        }
+        );
+
+    connect(
+        m_localPauseButton,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+            if (!m_usingYouTube && m_videoPlayer)
+            {
+                m_videoPlayer->pause();
+            }
+        }
+        );
+
+    connect(
+        m_localVolumeSlider,
+        &QSlider::valueChanged,
+        this,
+        [this](int value)
+        {
+            if (!m_usingYouTube && m_videoPlayer)
+            {
+                m_videoPlayer->setVolume(value / 100.0f);
+            }
+        }
+        );
+
+    connect(
+        m_localFullScreenButton,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+            if (ui && ui->fullScreenButton)
+            {
+                ui->fullScreenButton->click();
+            }
+        }
+        );
+
+    m_localControlBar->hide();
+}
+
+
+void MainWindow::setPlaybackMode(bool useYouTube)
+{
+    m_usingYouTube = useYouTube;
+
+    if (ui)
+    {
+        // The original control bar is now explicitly the YouTube bar.
+        ui->playButton->setVisible(useYouTube);
+        ui->pauseButton->setVisible(useYouTube);
+        ui->progressSlider->setVisible(useYouTube);
+        ui->timeLabel->setVisible(useYouTube);
+        ui->volumeButton->setVisible(useYouTube);
+    }
+
+    if (m_localControlBar)
+    {
+        m_localControlBar->setGeometry(
+            ui->controlBar->geometry()
+            );
+        m_localControlBar->setVisible(!useYouTube);
+
+        if (!useYouTube)
+        {
+            m_localControlBar->raise();
+        }
+    }
+
+    if (m_videoWidget)
+    {
+        m_videoWidget->setVisible(!useYouTube);
+    }
+
+    if (m_youtubeView)
+    {
+        m_youtubeView->setVisible(useYouTube);
+
+        if (useYouTube)
+        {
+            m_youtubeView->raise();
+        }
+    }
+
+    if (volumePopupWindow && !useYouTube)
+    {
+        volumePopupWindow->hide();
+    }
+}
+
+
 MainWindow::~MainWindow()
 {
     delete ui;
@@ -1033,7 +1364,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     {
         if (obj == m_youtubeView ||
             obj == m_videoWidget ||
-            obj == ui->videoDisplay)
+            obj == ui->videoDisplay ||
+            (obj && obj->objectName() == "youtubeOverlay"))
         {
             if (!m_isFullScreen)
             {
@@ -1219,6 +1551,18 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 
 
     ui->controlBar->raise();
+
+    if (m_localControlBar)
+    {
+        m_localControlBar->setGeometry(
+            ui->controlBar->geometry()
+            );
+
+        if (m_localControlBar->isVisible())
+        {
+            m_localControlBar->raise();
+        }
+    }
 }
 
 
@@ -1252,7 +1596,18 @@ QString MainWindow::formatTime(qint64 milliseconds)
 
 void MainWindow::stopVideo()
 {
-    if(m_videoPlayer)
+    if (m_usingYouTube)
+    {
+        if (m_youtubePlayer)
+        {
+            m_youtubePlayer->stop();
+            m_youtubeIsPlaying = false;
+        }
+
+        return;
+    }
+
+    if (m_videoPlayer)
     {
         m_videoPlayer->pause();
     }
@@ -1261,15 +1616,13 @@ void MainWindow::stopVideo()
 
 void MainWindow::toggleYouTubePlayPause()
 {
-    static bool youtubePlaying = false;
-
-    if (!m_youtubePlayer)
+    if (!m_youtubePlayer || !m_usingYouTube)
         return;
 
-    if (youtubePlaying)
+    if (m_youtubeIsPlaying)
     {
         m_youtubePlayer->pause();
-        youtubePlaying = false;
+        m_youtubeIsPlaying = false;
 
         qDebug()
             << "[YOUTUBE CONTROL]"
@@ -1278,7 +1631,7 @@ void MainWindow::toggleYouTubePlayPause()
     else
     {
         m_youtubePlayer->play();
-        youtubePlaying = true;
+        m_youtubeIsPlaying = true;
 
         qDebug()
             << "[YOUTUBE CONTROL]"
