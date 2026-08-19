@@ -359,6 +359,9 @@ function createPlayer()
 
                     controls: 0,
 
+                    // Keep keyboard control in the native Qt player only.
+                    disablekb: 1,
+
                     rel: 0,
 
                     playsinline: 1,

@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include <QApplication>
 #include <QDebug>
 #include <QTimer>
 #include <QHBoxLayout>
@@ -296,7 +297,10 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     this->setMouseTracking(true);
-    this->installEventFilter(this);
+
+    // Capture video keyboard shortcuts regardless of which control currently
+    // owns focus (button, slider, WebEngine view, or one of its children).
+    qApp->installEventFilter(this);
 
     ui->videoDisplay->setGeometry(
         ui->videoFrame->rect()
@@ -1445,12 +1449,28 @@ void MainWindow::updateVideoLayout()
 
 MainWindow::~MainWindow()
 {
+    if (qApp)
+    {
+        qApp->removeEventFilter(this);
+    }
+
     delete ui;
 }
 
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
+    QWidget *targetWidget = qobject_cast<QWidget*>(obj);
+    const bool belongsToThisWindow =
+        obj == this ||
+        (targetWidget &&
+         (targetWidget == this || this->isAncestorOf(targetWidget)));
+
+    if (!belongsToThisWindow)
+    {
+        return QMainWindow::eventFilter(obj, event);
+    }
+
     if (event->type() == QEvent::MouseButtonDblClick)
     {
         if (obj == m_youtubeView ||
@@ -1489,10 +1509,36 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     }
 
 
-    if (event->type() == QEvent::KeyPress)
+    if (event->type() == QEvent::KeyPress ||
+        event->type() == QEvent::KeyRelease)
     {
         QKeyEvent *keyEvent =
             static_cast<QKeyEvent*>(event);
+
+        const int key = keyEvent->key();
+        const bool isVideoToggleKey =
+            key == Qt::Key_Space ||
+            key == Qt::Key_Left ||
+            key == Qt::Key_Right;
+
+        // These keys belong to the application's custom video controls.
+        // Consume both press and release so the embedded YouTube player
+        // never receives them as native YouTube shortcuts.
+        if (m_usingYouTube && isVideoToggleKey)
+        {
+            if (event->type() == QEvent::KeyPress &&
+                !keyEvent->isAutoRepeat())
+            {
+                toggleYouTubePlayPause();
+            }
+
+            return true;
+        }
+
+        if (event->type() == QEvent::KeyRelease)
+        {
+            return QMainWindow::eventFilter(obj, event);
+        }
 
 
         // =========================
