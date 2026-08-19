@@ -18,9 +18,17 @@
 #include <QPoint>
 #include <QMediaPlayer>
 #include <QBuffer>
+#include <QAbstractButton>
+#include <QAction>
+#include <QIcon>
+#include <QMenu>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPolygonF>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSlider>
+#include <QToolButton>
 
 #include "Core/Managers/CourseManager.h"
 #include "Core/Managers/LessonManager.h"
@@ -75,6 +83,142 @@ QString youtubeVideoIdFromValue(const QString &value)
     // Keep the current test video as a safe YouTube fallback until each
     // lesson receives its real YouTube ID.
     return QString::fromLatin1(kDefaultYouTubeVideoId);
+}
+
+QIcon makePlayIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+
+    QPolygonF triangle;
+    triangle << QPointF(10.0, 7.0)
+             << QPointF(24.0, 16.0)
+             << QPointF(10.0, 25.0);
+
+    painter.drawPolygon(triangle);
+    return QIcon(pixmap);
+}
+
+QIcon makePauseIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+    painter.drawRoundedRect(QRectF(8.0, 7.0, 6.0, 18.0), 2.0, 2.0);
+    painter.drawRoundedRect(QRectF(18.0, 7.0, 6.0, 18.0), 2.0, 2.0);
+
+    return QIcon(pixmap);
+}
+
+QIcon makeVolumeIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(color, 2.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setBrush(color);
+
+    QPainterPath speaker;
+    speaker.moveTo(7.0, 13.0);
+    speaker.lineTo(12.0, 13.0);
+    speaker.lineTo(18.0, 8.0);
+    speaker.lineTo(18.0, 24.0);
+    speaker.lineTo(12.0, 19.0);
+    speaker.lineTo(7.0, 19.0);
+    speaker.closeSubpath();
+    painter.drawPath(speaker);
+
+    painter.setBrush(Qt::NoBrush);
+    painter.drawArc(QRectF(15.0, 10.0, 13.0, 12.0), -55 * 16, 110 * 16);
+
+    return QIcon(pixmap);
+}
+
+QIcon makeFullscreenIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(color, 2.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+
+    painter.drawLine(QPointF(7.0, 12.0), QPointF(7.0, 7.0));
+    painter.drawLine(QPointF(7.0, 7.0), QPointF(12.0, 7.0));
+    painter.drawLine(QPointF(20.0, 7.0), QPointF(25.0, 7.0));
+    painter.drawLine(QPointF(25.0, 7.0), QPointF(25.0, 12.0));
+    painter.drawLine(QPointF(7.0, 20.0), QPointF(7.0, 25.0));
+    painter.drawLine(QPointF(7.0, 25.0), QPointF(12.0, 25.0));
+    painter.drawLine(QPointF(20.0, 25.0), QPointF(25.0, 25.0));
+    painter.drawLine(QPointF(25.0, 25.0), QPointF(25.0, 20.0));
+
+    return QIcon(pixmap);
+}
+
+QIcon makeSpeedIcon(const QColor &color)
+{
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(color, 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawEllipse(QRectF(6.0, 6.0, 20.0, 20.0));
+    painter.drawLine(QPointF(16.0, 16.0), QPointF(16.0, 10.0));
+    painter.drawLine(QPointF(16.0, 16.0), QPointF(21.0, 19.0));
+
+    QPolygonF arrow;
+    arrow << QPointF(22.0, 7.0)
+          << QPointF(27.0, 8.0)
+          << QPointF(24.0, 12.0);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+    painter.drawPolygon(arrow);
+
+    return QIcon(pixmap);
+}
+
+void styleControlButton(
+    QAbstractButton *button,
+    const QIcon &icon,
+    const QString &toolTip)
+{
+    if (!button)
+    {
+        return;
+    }
+
+    button->setText(QString());
+    button->setIcon(icon);
+    button->setIconSize(QSize(21, 21));
+    button->setToolTip(toolTip);
+    button->setAccessibleName(toolTip);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setFocusPolicy(Qt::StrongFocus);
+    button->setStyleSheet(
+        "QPushButton { background: #202b38; color: #eef4fb;"
+        "border: 1px solid #344454; border-radius: 8px; padding: 0; }"
+        "QPushButton:hover { background: #2b3b4d; border-color: #4d6982; }"
+        "QPushButton:pressed { background: #17212c; }"
+        "QPushButton:focus { border: 1px solid #72b7ff; }"
+        );
+}
+
+QString formatPlaybackRate(double rate)
+{
+    return QString::number(rate, 'g', 3) + QStringLiteral("×");
 }
 }
 
@@ -401,6 +545,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // The local controls are kept separate and parked while YouTube is primary.
     setupLocalControls();
+    setupYouTubeControls();
 
     connect(
         ui->playButton,
@@ -1235,14 +1380,24 @@ void MainWindow::setupLocalControls()
     layout->setSpacing(8);
 
     m_localPlayButton =
-        new QPushButton(QStringLiteral("▶"), m_localControlBar);
+        new QPushButton(m_localControlBar);
     m_localPlayButton->setObjectName("localPlayButton");
     m_localPlayButton->setFixedSize(45, 40);
+    styleControlButton(
+        m_localPlayButton,
+        makePlayIcon(QColor("#eef4fb")),
+        QStringLiteral("تشغيل الفيديو المحلي")
+        );
 
     m_localPauseButton =
-        new QPushButton(QStringLiteral("⏸"), m_localControlBar);
+        new QPushButton(m_localControlBar);
     m_localPauseButton->setObjectName("localPauseButton");
     m_localPauseButton->setFixedSize(45, 40);
+    styleControlButton(
+        m_localPauseButton,
+        makePauseIcon(QColor("#eef4fb")),
+        QStringLiteral("إيقاف الفيديو المحلي مؤقتًا")
+        );
 
     m_localProgressSlider =
         new QSlider(Qt::Horizontal, m_localControlBar);
@@ -1263,9 +1418,14 @@ void MainWindow::setupLocalControls()
     m_localVolumeSlider->setFixedWidth(120);
 
     m_localFullScreenButton =
-        new QPushButton(QStringLiteral("⛶"), m_localControlBar);
+        new QPushButton(m_localControlBar);
     m_localFullScreenButton->setObjectName("localFullScreenButton");
     m_localFullScreenButton->setFixedSize(45, 40);
+    styleControlButton(
+        m_localFullScreenButton,
+        makeFullscreenIcon(QColor("#eef4fb")),
+        QStringLiteral("ملء الشاشة")
+        );
 
     layout->addWidget(m_localPlayButton);
     layout->addWidget(m_localPauseButton);
@@ -1330,6 +1490,159 @@ void MainWindow::setupLocalControls()
 }
 
 
+void MainWindow::setupYouTubeControls()
+{
+    const QColor iconColor("#eef4fb");
+
+    styleControlButton(
+        ui->playButton,
+        makePlayIcon(iconColor),
+        QStringLiteral("تشغيل الفيديو")
+        );
+
+    styleControlButton(
+        ui->pauseButton,
+        makePauseIcon(iconColor),
+        QStringLiteral("إيقاف الفيديو مؤقتًا")
+        );
+
+    styleControlButton(
+        ui->volumeButton,
+        makeVolumeIcon(iconColor),
+        QStringLiteral("الصوت")
+        );
+
+    styleControlButton(
+        ui->fullScreenButton,
+        makeFullscreenIcon(iconColor),
+        QStringLiteral("ملء الشاشة")
+        );
+
+    m_speedButton = new QToolButton(ui->controlBar);
+    m_speedButton->setObjectName(QStringLiteral("speedButton"));
+    m_speedButton->setFixedSize(76, 40);
+    m_speedButton->setIcon(makeSpeedIcon(iconColor));
+    m_speedButton->setIconSize(QSize(18, 18));
+    m_speedButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    m_speedButton->setPopupMode(QToolButton::InstantPopup);
+    m_speedButton->setToolTip(
+        QStringLiteral("سرعة تشغيل الفيديو")
+        );
+    m_speedButton->setAccessibleName(
+        QStringLiteral("سرعة تشغيل الفيديو")
+        );
+    m_speedButton->setCursor(Qt::PointingHandCursor);
+    m_speedButton->setFocusPolicy(Qt::StrongFocus);
+    m_speedButton->setStyleSheet(
+        "QToolButton { background: #202b38; color: #eef4fb;"
+        "border: 1px solid #344454; border-radius: 8px;"
+        "padding: 0 8px; font-size: 13px; font-weight: 600; }"
+        "QToolButton:hover { background: #2b3b4d; border-color: #4d6982; }"
+        "QToolButton:pressed { background: #17212c; }"
+        "QToolButton:focus { border: 1px solid #72b7ff; }"
+        );
+
+    m_speedMenu = new QMenu(m_speedButton);
+    m_speedMenu->setStyleSheet(
+        "QMenu { background: #1b2632; color: #eef4fb;"
+        "border: 1px solid #344454; padding: 6px; }"
+        "QMenu::item { padding: 8px 30px 8px 12px; border-radius: 6px; }"
+        "QMenu::item:selected { background: #2b4d6b; }"
+        "QMenu::item:checked { color: #8bc7ff; font-weight: 600; }"
+        );
+
+    const QList<double> playbackRates =
+        {0.5, 0.75, 1.0, 1.25, 1.5, 2.0};
+
+    for (const double rate : playbackRates)
+    {
+        QAction *action =
+            m_speedMenu->addAction(formatPlaybackRate(rate));
+
+        action->setCheckable(true);
+        action->setData(rate);
+
+        connect(
+            action,
+            &QAction::triggered,
+            this,
+            [this, rate]()
+            {
+                if (!m_usingYouTube || !m_youtubePlayer)
+                {
+                    return;
+                }
+
+                m_youtubePlayer->setPlaybackRate(rate);
+            }
+            );
+    }
+
+    m_speedButton->setMenu(m_speedMenu);
+
+    QHBoxLayout *controlsLayout = nullptr;
+    QLayout *barLayout = ui->controlBar->layout();
+
+    if (barLayout && barLayout->count() > 0)
+    {
+        QLayoutItem *firstItem = barLayout->itemAt(0);
+
+        if (firstItem)
+        {
+            controlsLayout =
+                qobject_cast<QHBoxLayout*>(firstItem->layout());
+        }
+    }
+
+    if (controlsLayout)
+    {
+        const int fullScreenIndex =
+            controlsLayout->indexOf(ui->fullScreenButton);
+
+        controlsLayout->insertWidget(
+            fullScreenIndex >= 0
+                ? fullScreenIndex
+                : controlsLayout->count(),
+            m_speedButton
+            );
+    }
+
+    connect(
+        m_youtubePlayer,
+        &YouTubePlayer::playbackRateChanged,
+        this,
+        [this](double rate)
+        {
+            updatePlaybackRateUi(rate);
+        }
+        );
+
+    updatePlaybackRateUi(1.0);
+}
+
+
+void MainWindow::updatePlaybackRateUi(double rate)
+{
+    m_playbackRate = rate;
+
+    if (m_speedButton)
+    {
+        m_speedButton->setText(formatPlaybackRate(rate));
+    }
+
+    if (!m_speedMenu)
+    {
+        return;
+    }
+
+    for (QAction *action : m_speedMenu->actions())
+    {
+        const double actionRate = action->data().toDouble();
+        action->setChecked(qAbs(actionRate - rate) < 0.01);
+    }
+}
+
+
 void MainWindow::setPlaybackMode(bool useYouTube)
 {
     m_usingYouTube = useYouTube;
@@ -1342,6 +1655,11 @@ void MainWindow::setPlaybackMode(bool useYouTube)
         ui->progressSlider->setVisible(useYouTube);
         ui->timeLabel->setVisible(useYouTube);
         ui->volumeButton->setVisible(useYouTube);
+    }
+
+    if (m_speedButton)
+    {
+        m_speedButton->setVisible(useYouTube);
     }
 
     if (m_localControlBar)
@@ -1521,10 +1839,15 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             key == Qt::Key_Left ||
             key == Qt::Key_Right;
 
+        const bool speedMenuIsOpen =
+            m_speedMenu && m_speedMenu->isVisible();
+
         // These keys belong to the application's custom video controls.
         // Consume both press and release so the embedded YouTube player
         // never receives them as native YouTube shortcuts.
-        if (m_usingYouTube && isVideoToggleKey)
+        if (m_usingYouTube &&
+            isVideoToggleKey &&
+            !speedMenuIsOpen)
         {
             if (event->type() == QEvent::KeyPress &&
                 !keyEvent->isAutoRepeat())

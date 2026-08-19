@@ -732,7 +732,7 @@ QPushButton:pressed {
 }</string>
               </property>
               <property name="text">
-               <string>▶</string>
+               <string/>
               </property>
              </widget>
             </item>
@@ -782,7 +782,7 @@ QPushButton:pressed {
 }</string>
               </property>
               <property name="text">
-               <string>⏸</string>
+               <string/>
               </property>
              </widget>
             </item>
@@ -861,8 +861,8 @@ QPushButton:pressed {
               <property name="layoutDirection">
                <enum>Qt::LayoutDirection::LeftToRight</enum>
               </property>
-              <property name="text">
-               <string>🔊</string>
+             <property name="text">
+               <string/>
               </property>
              </widget>
             </item>
@@ -893,7 +893,7 @@ QPushButton:pressed {
                </font>
               </property>
               <property name="text">
-               <string>⛶</string>
+               <string/>
               </property>
              </widget>
             </item>

@@ -27,6 +27,8 @@ class VideoPlayer;
 class QVideoWidget;
 class QPushButton;
 class QSlider;
+class QMenu;
+class QToolButton;
 
 class MainWindow : public QMainWindow
 {
@@ -45,6 +47,12 @@ public:
 private:
 
     void setupLocalControls();
+
+    void setupYouTubeControls();
+
+    void updatePlaybackRateUi(
+        double rate
+        );
 
     void setPlaybackMode(bool useYouTube);
 
@@ -93,6 +101,10 @@ private:
     QSlider *m_localProgressSlider = nullptr;
     QLabel *m_localTimeLabel = nullptr;
     QSlider *m_localVolumeSlider = nullptr;
+
+    QToolButton *m_speedButton = nullptr;
+    QMenu *m_speedMenu = nullptr;
+    double m_playbackRate = 1.0;
 
 
 

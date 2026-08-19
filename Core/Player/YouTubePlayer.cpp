@@ -19,6 +19,7 @@ YouTubePlayer::YouTubePlayer(
     , m_pendingPlayCommand(false)
     , m_pendingPauseCommand(false)
     , m_playerReady(false)
+    , m_playbackRate(1.0)
 {
     if (!m_view)
     {
@@ -173,6 +174,8 @@ var pendingPlay = false;
 
 var pendingPause = false;
 
+var requestedPlaybackRate = 1.0;
+
 function notifyQtPlayerReady()
 {
     if (!youtubePlayerReady ||
@@ -236,6 +239,18 @@ function startProgressReporting()
         reportProgress,
         250
         );
+}
+
+function applyRequestedPlaybackRate()
+{
+    if (player &&
+        youtubePlayerReady &&
+        player.setPlaybackRate)
+    {
+        player.setPlaybackRate(
+            requestedPlaybackRate
+            );
+    }
 }
 
 function setupQtBridge()
@@ -383,6 +398,10 @@ function createPlayer()
                         onPlayerStateChange,
 
 
+                    onPlaybackRateChange:
+                        onPlaybackRateChange,
+
+
                     onError:
                         onPlayerError
                 }
@@ -414,6 +433,8 @@ function onPlayerReady(event)
         pendingPause = false;
         player.pauseVideo();
     }
+
+    applyRequestedPlaybackRate();
 
     startProgressReporting();
 
@@ -472,6 +493,14 @@ function onPlayerStateChange(event)
     }
 }
 
+function onPlaybackRateChange(event)
+{
+    if (qtBridge && qtBridge.onJsPlaybackRateChanged)
+    {
+        qtBridge.onJsPlaybackRateChanged(event.data);
+    }
+}
+
 
 /* ============================================================
    Player error
@@ -518,6 +547,13 @@ function setVideo(videoId)
     player.loadVideoById(
         videoId
     );
+
+    // Loading a new video resets the playback rate to 1. Re-apply the
+    // selected rate after YouTube finishes loading the new video.
+    window.setTimeout(
+        applyRequestedPlaybackRate,
+        250
+        );
 }
 
 
@@ -582,6 +618,14 @@ function setVideoVolume(volume)
             volume
         );
     }
+}
+
+
+function setVideoPlaybackRate(rate)
+{
+    requestedPlaybackRate = Number(rate);
+
+    applyRequestedPlaybackRate();
 }
 
 
@@ -678,6 +722,12 @@ loadYouTubeAPI();
                 m_pendingPauseCommand = false;
                 runJavaScript("pauseVideo();");
             }
+
+            runJavaScript(
+                QString("setVideoPlaybackRate(%1);").arg(
+                    QString::number(m_playbackRate, 'f', 2)
+                    )
+                );
 
             // Loading the page is enough to start the existing
             // YouTube flow. WebChannel is only used for telemetry.
@@ -858,6 +908,17 @@ void YouTubePlayer::onJsDurationChanged(double seconds)
     emit durationChanged(static_cast<qint64>(seconds * 1000));
 }
 
+void YouTubePlayer::onJsPlaybackRateChanged(double rate)
+{
+    if (rate <= 0.0)
+    {
+        return;
+    }
+
+    m_playbackRate = rate;
+    emit playbackRateChanged(rate);
+}
+
 void YouTubePlayer::onJsError(const QString &message)
 {
     emit error(message);
@@ -901,6 +962,25 @@ void YouTubePlayer::setVolume(int volume) {
     if (m_view && m_view->page()) {
         m_view->page()->runJavaScript(
             QString("if(player && player.setVolume) { player.setVolume(%1); }").arg(volume)
+            );
+    }
+}
+
+void YouTubePlayer::setPlaybackRate(double rate)
+{
+    if (rate < 0.25 || rate > 2.0)
+    {
+        return;
+    }
+
+    m_playbackRate = rate;
+
+    if (m_view && m_view->page())
+    {
+        m_view->page()->runJavaScript(
+            QString("setVideoPlaybackRate(%1);").arg(
+                QString::number(rate, 'f', 2)
+                )
             );
     }
 }

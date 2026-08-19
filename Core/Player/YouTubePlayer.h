@@ -44,6 +44,10 @@ public:
         int volume
         );
 
+    void setPlaybackRate(
+        double rate
+        );
+
     void setFullScreen(
         bool enabled
         );
@@ -55,6 +59,7 @@ public slots:
     void onJsStateChanged(int state);
     void onJsPositionChanged(double seconds);
     void onJsDurationChanged(double seconds);
+    void onJsPlaybackRateChanged(double rate);
     void onJsError(const QString &message);
 
 
@@ -74,6 +79,10 @@ signals:
 
     void durationChanged(
         qint64 duration
+        );
+
+    void playbackRateChanged(
+        double rate
         );
 
     void error(
@@ -105,6 +114,8 @@ private:
     bool m_pendingPauseCommand;
 
     bool m_playerReady;
+
+    double m_playbackRate;
 };
 
 #endif // YOUTUBEPLAYER_H
