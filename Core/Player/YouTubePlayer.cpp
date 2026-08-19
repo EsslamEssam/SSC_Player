@@ -3,6 +3,7 @@
 #include <QWebEngineView>
 #include <QWebChannel>
 #include <QWebEnginePage>
+#include <QWebEngineSettings>
 #include <QUrl>
 #include <QDebug>
 
@@ -30,6 +31,14 @@ YouTubePlayer::YouTubePlayer(
     //Gemini
     // حظر القائمة الجانبية (الزر الأيمن) لمنع الوصول لأدوات الفحص
     m_view->setContextMenuPolicy(Qt::NoContextMenu);
+
+    // The controls live in the native Qt window, not inside the web page.
+    // Allow those controls to call YouTube's play API without being rejected
+    // by Chromium's "user gesture" autoplay policy.
+    m_view->settings()->setAttribute(
+        QWebEngineSettings::PlaybackRequiresUserGesture,
+        false
+        );
 
     m_channel =
         new QWebChannel(

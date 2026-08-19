@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QTimer>
 #include <QHBoxLayout>
+#include <QLayout>
 #include <QVBoxLayout>
 #include <QVideoWidget>
 #include <utility>
@@ -88,11 +89,11 @@ MainWindow::MainWindow(QWidget *parent)
     //يوتيوب
     m_youtubeView =
         new QWebEngineView(
-            ui->videoDisplay
+            ui->videoFrame
             );
 
     m_youtubeView->setGeometry(
-        ui->videoDisplay->rect()
+        ui->videoDisplay->geometry()
         );
 
     m_youtubeView->hide();
@@ -130,7 +131,9 @@ MainWindow::MainWindow(QWidget *parent)
             // عند تشغيل يوتيوب:
 
             // ضبط قياسات الـ View
-            m_youtubeView->setGeometry(0, 0, ui->videoDisplay->width(), ui->videoDisplay->height());
+            m_youtubeView->setGeometry(
+                ui->videoDisplay->geometry()
+                );
 
             m_youtubeView->show();
             m_youtubeView->raise();
@@ -151,6 +154,10 @@ MainWindow::MainWindow(QWidget *parent)
             overlay->setAttribute(Qt::WA_TransparentForMouseEvents, false);
             overlay->raise();
             overlay->show();
+
+            // Keep the native YouTube controls above the WebEngine view after
+            // the view/overlay is recreated or raised.
+            ui->controlBar->raise();
             // -------------------------------------------------------------
 
             // تشغيل الفيديو المطلوب
@@ -474,6 +481,17 @@ MainWindow::MainWindow(QWidget *parent)
 
                     m_isFullScreen = false;
                 }
+
+                // Let Qt finish the window/layout transition first, then
+                // resize the video and its overlay from the final geometry.
+                QTimer::singleShot(
+                    0,
+                    this,
+                    [this]()
+                    {
+                        updateVideoLayout();
+                    }
+                    );
             });
 
     connect(
@@ -1357,6 +1375,74 @@ void MainWindow::setPlaybackMode(bool useYouTube)
 }
 
 
+void MainWindow::updateVideoLayout()
+{
+    if (!ui || !ui->videoFrame || !ui->videoDisplay)
+        return;
+
+    // Re-activate the layouts after showFullScreen()/showNormal() so the
+    // geometry below is based on the final restored window size.
+    if (ui->centralwidget && ui->centralwidget->layout())
+    {
+        ui->centralwidget->layout()->activate();
+    }
+
+    if (ui->videoFrame->layout())
+    {
+        ui->videoFrame->layout()->activate();
+    }
+
+    ui->videoDisplay->setGeometry(
+        ui->videoFrame->rect()
+        );
+
+    if (m_youtubeView && m_youtubeView->isVisible())
+    {
+        m_youtubeView->setGeometry(
+            ui->videoDisplay->geometry()
+            );
+
+        m_youtubeView->raise();
+
+        QWidget *overlay =
+            m_youtubeView->findChild<QWidget*>(
+                "youtubeOverlay"
+                );
+
+        if (overlay)
+        {
+            overlay->setGeometry(
+                m_youtubeView->rect()
+                );
+
+            overlay->raise();
+        }
+    }
+
+    ui->controlBar->setGeometry(
+        0,
+        ui->videoFrame->height()
+            - ui->controlBar->height(),
+        ui->videoFrame->width(),
+        ui->controlBar->height()
+        );
+
+    ui->controlBar->raise();
+
+    if (m_localControlBar)
+    {
+        m_localControlBar->setGeometry(
+            ui->controlBar->geometry()
+            );
+
+        if (m_localControlBar->isVisible())
+        {
+            m_localControlBar->raise();
+        }
+    }
+}
+
+
 MainWindow::~MainWindow()
 {
     delete ui;
@@ -1372,27 +1458,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             obj == ui->videoDisplay ||
             (obj && obj->objectName() == "youtubeOverlay"))
         {
-            if (!m_isFullScreen)
+            if (ui->fullScreenButton)
             {
-                ui->coursePanel->hide();
-
-                this->showFullScreen();
-
-                m_isFullScreen = true;
-
-                ui->controlBar->show();
-                ui->controlBar->raise();
-            }
-            else
-            {
-                this->showNormal();
-
-                ui->coursePanel->show();
-
-                m_isFullScreen = false;
-
-                ui->controlBar->show();
-                ui->controlBar->raise();
+                // Use the same path as the dedicated button so double-click
+                // cannot leave the central layout in a different state.
+                ui->fullScreenButton->click();
             }
 
             return true;
@@ -1405,12 +1475,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         if(m_isFullScreen)
         {
             ui->controlBar->show();
+            ui->controlBar->raise();
 
             controlsTimer->start(3000);
         }
         else
         {
             ui->controlBar->show();
+            ui->controlBar->raise();
 
             controlsTimer->stop();
         }
@@ -1462,28 +1534,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
             m_isFullScreen = false;
 
-            ui->videoDisplay->setGeometry(
-                ui->videoFrame->rect()
-                );
-
-            if (m_youtubeView)
-            {
-                m_youtubeView->setGeometry(
-                    ui->videoDisplay->rect()
-                    );
-
-                m_youtubeView->raise();
-            }
-
-            ui->controlBar->setGeometry(
+            QTimer::singleShot(
                 0,
-                ui->videoFrame->height()
-                    - ui->controlBar->height(),
-                ui->videoFrame->width(),
-                ui->controlBar->height()
+                this,
+                [this]()
+                {
+                    updateVideoLayout();
+                }
                 );
-
-            ui->controlBar->raise();
 
             return true;
         }
@@ -1499,75 +1557,7 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
 
-
-    // =====================================================
-    // Video display
-    // =====================================================
-
-    ui->videoDisplay->setGeometry(
-        ui->videoFrame->rect()
-        );
-
-
-    // =====================================================
-    // YouTube display
-    // =====================================================
-
-    if (m_youtubeView &&
-        m_youtubeView->isVisible())
-    {
-        m_youtubeView->setGeometry(
-            ui->videoDisplay->rect()
-            );
-
-        m_youtubeView->raise();
-
-
-        QWidget *overlay =
-            m_youtubeView->findChild<QWidget*>(
-                "youtubeOverlay"
-                );
-
-        if (overlay)
-        {
-            overlay->setGeometry(
-                0,
-                0,
-                m_youtubeView->width(),
-                m_youtubeView->height()
-                );
-
-            overlay->raise();
-        }
-    }
-
-
-    // =====================================================
-    // Control Bar
-    // =====================================================
-
-    ui->controlBar->setGeometry(
-        0,
-        ui->videoFrame->height()
-            - ui->controlBar->height(),
-        ui->videoFrame->width(),
-        ui->controlBar->height()
-        );
-
-
-    ui->controlBar->raise();
-
-    if (m_localControlBar)
-    {
-        m_localControlBar->setGeometry(
-            ui->controlBar->geometry()
-            );
-
-        if (m_localControlBar->isVisible())
-        {
-            m_localControlBar->raise();
-        }
-    }
+    updateVideoLayout();
 }
 
 

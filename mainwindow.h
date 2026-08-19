@@ -48,6 +48,8 @@ private:
 
     void setPlaybackMode(bool useYouTube);
 
+    void updateVideoLayout();
+
     Ui::MainWindow *ui;
 
     QWidget *volumePopupWindow;
