@@ -1,84 +1,105 @@
-# This file is used to ignore files which are generated
-# ----------------------------------------------------------------------------
+# =========================
+# CMake
+# =========================
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+Makefile
+CTestTestfile.cmake
+compile_commands.json
 
-*~
-*.autosave
-*.a
-*.core
-*.moc
+# CMake presets generated files
+CMakeUserPresets.json
+
+# =========================
+# Compiled files
+# =========================
 *.o
 *.obj
-*.orig
-*.rej
+*.lo
+*.a
+*.lib
 *.so
 *.so.*
-*_pch.h.cpp
-*_resource.rc
-*.qm
-.#*
-*.*#
-core
-!core/
-tags
-.DS_Store
-.directory
-*.debug
-Makefile*
-*.prl
-*.app
-moc_*.cpp
-ui_*.h
-qrc_*.cpp
-Thumbs.db
-*.res
-*.rc
-/.qmake.cache
-/.qmake.stash
-**/.qmlls.ini
-
-# qtcreator generated files
-*.pro.user*
-*.qbs.user*
-CMakeLists.txt.user*
-
-# xemacs temporary files
-*.flc
-
-# Vim temporary files
-.*.swp
-
-# Visual Studio generated files
-*.ib_pdb_index
-*.idb
-*.ilk
-*.pdb
-*.sln
-*.suo
-*.vcproj
-*vcproj.*.*.user
-*.ncb
-*.sdf
-*.opensdf
-*.vcxproj
-*vcxproj.*
-
-# MinGW generated files
-*.Debug
-*.Release
-
-# Python byte code
-*.pyc
-
-# Binaries
-# --------
 *.dll
-*.exe
+*.dylib
 
-# Directories with generated files
-.moc/
-.obj/
-.pch/
-.rcc/
-.uic/
-/build*/
-/.qtcreator/
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.pdb
+*.ilk
+*.dSYM/
+
+# =========================
+# IDEs / Editors
+# =========================
+
+# VS Code
+.vscode/
+
+# CLion / JetBrains
+.idea/
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# =========================
+# OS files
+# =========================
+
+# Linux
+*~
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# =========================
+# Logs / Temporary files
+# =========================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# =========================
+# Testing / Coverage
+# =========================
+Testing/
+coverage/
+*.gcda
+*.gcno
+*.gcov
+
+# =========================
+# Package managers
+# =========================
+
+# Conan
+conanbuildinfo.*
+conan.lock
+
+# vcpkg local installation
+vcpkg_installed/
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example

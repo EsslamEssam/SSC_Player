@@ -10,6 +10,7 @@
 
 class MainWindow;
 class ActivationWindow;
+class ScreenCaptureManager;
 
 
 class ApplicationManager : public QObject
@@ -31,6 +32,7 @@ private:
 
     MainWindow *m_mainWindow;
     ActivationWindow *m_activationWindow;
+    ScreenCaptureManager *m_screenCaptureManager;
 
 };
 

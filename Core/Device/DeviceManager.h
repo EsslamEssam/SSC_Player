@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QString>
 
-
 class DeviceManager : public QObject
 {
     Q_OBJECT
@@ -15,12 +14,17 @@ public:
 
     QString getDeviceId() const;
 
-
 private:
 
-    QString m_deviceId;
+    QString getMachineGuid() const;
 
+    QString getMotherboardSerial() const;
+
+    QString getBiosSerial() const;
+
+    QString getSystemUUID() const;
+
+    QString sha256(const QString &text) const;
 };
-
 
 #endif // DEVICEMANAGER_H

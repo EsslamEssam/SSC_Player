@@ -4,12 +4,11 @@
 #include <QDialog>
 
 #include "../LicenseManager.h"
-
+#include "../../Device/DeviceManager.h"
 
 namespace Ui {
 class ActivationWindow;
 }
-
 
 class ActivationWindow : public QDialog
 {
@@ -21,16 +20,15 @@ public:
 
     ~ActivationWindow();
 
-
 signals:
 
     void licenseActivated();
-
 
 private slots:
 
     void on_activateButton_clicked();
 
+    void on_copyDeviceIdButton_clicked();
 
 private:
 
@@ -38,7 +36,7 @@ private:
 
     LicenseManager m_licenseManager;
 
+    DeviceManager m_deviceManager;
 };
-
 
 #endif // ACTIVATIONWINDOW_H

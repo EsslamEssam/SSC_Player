@@ -2,6 +2,10 @@
 
 #include <QDebug>
 
+#include <openssl/sha.h>
+#include <QCryptographicHash>
+#include <QDebug>
+
 
 Logger::Logger(QObject *parent)
     : QObject(parent)
