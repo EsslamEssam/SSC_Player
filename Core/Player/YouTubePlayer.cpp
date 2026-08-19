@@ -4,6 +4,7 @@
 #include <QWebChannel>
 #include <QWebEnginePage>
 #include <QWebEngineScript>
+#include <QWebEngineScriptCollection>
 #include <QWebEngineSettings>
 #include <QUrl>
 #include <QDebug>
