@@ -20,6 +20,7 @@
 #include <QBuffer>
 #include <QAbstractButton>
 #include <QAction>
+#include <QActionGroup>
 #include <QIcon>
 #include <QMenu>
 #include <QPainter>
@@ -2086,6 +2087,9 @@ void MainWindow::setupYouTubeControls()
         "QMenu::item:checked { color: #8bd4ff; font-weight: 600; }"
         );
 
+    auto *qualityGroup = new QActionGroup(m_qualityMenu);
+    qualityGroup->setExclusive(true);
+
     const QList<QPair<QString, QString>> playbackQualities =
         {
             {QStringLiteral("auto"), QStringLiteral("تلقائي")},
@@ -2105,6 +2109,7 @@ void MainWindow::setupYouTubeControls()
 
         action->setCheckable(true);
         action->setData(quality.first);
+        qualityGroup->addAction(action);
 
         connect(
             action,
@@ -2260,6 +2265,11 @@ void MainWindow::setupYouTubeControls()
                     }
                 }
                 );
+
+            // A check mark is only valid after the native YouTube menu
+            // confirms the change. Restore the last confirmed value when it
+            // rejects or cannot verify the requested quality.
+            updatePlaybackQualityUi(m_playbackQuality);
         }
         );
 

@@ -283,6 +283,50 @@ void YouTubePlayer::installYouTubeFrameBridge()
         reportResult(quality, success);
     }
 
+    function qualityOptionIsSelected(element)
+    {
+        if (!element)
+        {
+            return false;
+        }
+
+        return element.classList.contains("ytp-menuitem-checked") ||
+            element.classList.contains("ytp-menuitem-selected") ||
+            element.getAttribute("aria-checked") === "true" ||
+            element.getAttribute("aria-selected") === "true" ||
+            !!element.querySelector(
+                "[aria-checked=\"true\"], [aria-selected=\"true\"]"
+                );
+    }
+
+    function verifyQualitySelection(quality, option, attempt)
+    {
+        if (qualityOptionIsSelected(option))
+        {
+            finishCommand(quality, true);
+            return;
+        }
+
+        if (attempt < 12)
+        {
+            window.setTimeout(
+                function()
+                {
+                    verifyQualitySelection(
+                        quality,
+                        option,
+                        attempt + 1
+                        );
+                },
+                150
+                );
+        }
+        else
+        {
+            finishCommand(quality, false);
+        }
+    }
+
     function chooseQuality(quality, attempt)
     {
         installStyle();
@@ -346,7 +390,11 @@ void YouTubePlayer::installYouTubeFrameBridge()
                         window.setTimeout(
                             function()
                             {
-                                finishCommand(quality, true);
+                                verifyQualitySelection(
+                                    quality,
+                                    qualityOption,
+                                    0
+                                    );
                             },
                             120
                             );
@@ -505,6 +553,17 @@ var requestedPlaybackRate = 1.0;
 
 var requestedPlaybackQuality = "auto";
 
+function reportQualityCommandResult(quality, success)
+{
+    if (qtBridge && qtBridge.onJsPlaybackQualityCommandResult)
+    {
+        qtBridge.onJsPlaybackQualityCommandResult(
+            String(quality || "auto"),
+            !!success
+            );
+    }
+}
+
 function notifyQtPlayerReady()
 {
     if (!youtubePlayerReady ||
@@ -599,6 +658,10 @@ function sendFrameQualityCommand(quality, attempt)
                 100
                 );
         }
+        else
+        {
+            reportQualityCommandResult(quality, false);
+        }
 
         return;
     }
@@ -620,16 +683,10 @@ function applyRequestedPlaybackQuality()
         return;
     }
 
-    // Keep the old API call as a harmless fallback for older player builds.
-    // Current YouTube builds may ignore it, so the frame bridge below is the
-    // path used by the custom quality menu.
-    if (player.setPlaybackQuality)
-    {
-        player.setPlaybackQuality(
-            requestedPlaybackQuality
-            );
-    }
-
+    // YouTube's IFrame API no longer applies setPlaybackQuality(). The only
+    // honest path available here is the native quality menu inside the child
+    // iframe; its result is reported only after the selected menu item is
+    // visibly marked as selected.
     sendFrameQualityCommand(
         requestedPlaybackQuality,
         0
@@ -648,13 +705,10 @@ function onYouTubeFrameMessage(event)
         return;
     }
 
-    if (qtBridge.onJsPlaybackQualityCommandResult)
-    {
-        qtBridge.onJsPlaybackQualityCommandResult(
-            String(data.quality || "auto"),
-            !!data.success
-            );
-    }
+    reportQualityCommandResult(
+        String(data.quality || "auto"),
+        !!data.success
+        );
 }
 
 window.addEventListener(
@@ -1473,8 +1527,6 @@ void YouTubePlayer::setPlaybackQuality(const QString &quality)
     {
         return;
     }
-
-    m_playbackQuality = normalized;
 
     if (m_view && m_view->page())
     {
