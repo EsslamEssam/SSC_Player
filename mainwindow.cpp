@@ -35,6 +35,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , m_videoWidget(nullptr)
 {
     ui->setupUi(this);
 
@@ -71,6 +72,12 @@ MainWindow::MainWindow(QWidget *parent)
 
             // إخفاء شاشة الفيديو المحلي
             ui->videoDisplay->show();
+
+            if (m_videoWidget)
+            {
+                m_videoWidget->hide();
+            }
+
             // عند تشغيل يوتيوب:
 
             // ضبط قياسات الـ View
@@ -537,6 +544,20 @@ MainWindow::MainWindow(QWidget *parent)
                 + " / "
                 + formatTime(m_videoDuration)
                 );
+
+            if (position > m_maxWatchedPosition)
+            {
+                m_maxWatchedPosition = position;
+            }
+
+            if (m_videoDuration > 0)
+            {
+                ProgressManager::instance()
+                    .updateProgress(
+                        m_maxWatchedPosition,
+                        m_videoDuration
+                        );
+            }
         }
         );
 
@@ -734,6 +755,11 @@ MainWindow::MainWindow(QWidget *parent)
         layout->addWidget(m_videoWidget);
 
         m_videoPlayer->setVideoOutput(m_videoWidget);
+
+        if (m_usingYouTube)
+        {
+            m_videoWidget->hide();
+        }
 
     }
 

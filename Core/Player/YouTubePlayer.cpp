@@ -27,24 +27,19 @@ YouTubePlayer::YouTubePlayer(
     // حظر القائمة الجانبية (الزر الأيمن) لمنع الوصول لأدوات الفحص
     m_view->setContextMenuPolicy(Qt::NoContextMenu);
 
-    /*
-     * YouTube requires an HTTP Referer /
-     * equivalent client identification for
-     * embedded playback.
-     *
-     * We use a stable application origin
-     * for the embedded player.
-     */
-
-    m_view->page()->setUrl(
-        QUrl("https://app.scpp-player.local/")
-        );
-
-
     m_channel =
         new QWebChannel(
             m_view->page()
             );
+
+    m_channel->registerObject(
+        "youtubePlayer",
+        this
+        );
+
+    m_view->page()->setWebChannel(
+        m_channel
+        );
 
 
     loadPlayerPage();
@@ -81,6 +76,8 @@ void YouTubePlayer::loadPlayerPage()
     name="referrer"
     content="strict-origin-when-cross-origin"
 >
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 
 //Gemini
 <style>
@@ -147,6 +144,106 @@ html, body {
 var player = null;
 
 var requestedVideoId = "";
+
+var qtBridge = null;
+
+var youtubePlayerReady = false;
+
+var qtReadyNotified = false;
+
+var progressTimer = null;
+
+var lastReportedDuration = -1;
+
+function notifyQtPlayerReady()
+{
+    if (!youtubePlayerReady ||
+        !qtBridge ||
+        qtReadyNotified)
+    {
+        return;
+    }
+
+    if (qtBridge.onJsReady)
+    {
+        qtReadyNotified = true;
+        qtBridge.onJsReady();
+    }
+}
+
+function reportProgress()
+{
+    if (!player || !qtBridge)
+    {
+        return;
+    }
+
+    var duration = player.getDuration();
+
+    if (duration > 0 &&
+        duration !== lastReportedDuration)
+    {
+        lastReportedDuration = duration;
+
+        if (qtBridge.onJsDurationChanged)
+        {
+            qtBridge.onJsDurationChanged(duration);
+        }
+    }
+
+    var state = player.getPlayerState();
+
+    if (state === YT.PlayerState.PLAYING ||
+        state === YT.PlayerState.PAUSED ||
+        state === YT.PlayerState.BUFFERING ||
+        state === YT.PlayerState.ENDED)
+    {
+        if (qtBridge.onJsPositionChanged)
+        {
+            qtBridge.onJsPositionChanged(
+                player.getCurrentTime()
+                );
+        }
+    }
+}
+
+function startProgressReporting()
+{
+    if (progressTimer !== null)
+    {
+        return;
+    }
+
+    progressTimer = setInterval(
+        reportProgress,
+        250
+        );
+}
+
+function setupQtBridge()
+{
+    if (typeof QWebChannel === "undefined" ||
+        typeof qt === "undefined" ||
+        !qt.webChannelTransport)
+    {
+        console.error(
+            "[YOUTUBE] Qt WebChannel is unavailable."
+            );
+
+        return;
+    }
+
+    new QWebChannel(
+        qt.webChannelTransport,
+        function(channel)
+        {
+            qtBridge =
+                channel.objects.youtubePlayer;
+
+            notifyQtPlayerReady();
+        }
+        );
+}
 
 //Gemini
 // 👇 هنا تضع كود الـ JavaScript للحذف التلقائي للعناصر
@@ -283,6 +380,12 @@ function onPlayerReady(event)
         "[YOUTUBE] Player ready"
     );
 
+    youtubePlayerReady = true;
+
+    startProgressReporting();
+
+    notifyQtPlayerReady();
+
 
     if (window.youtubeReady)
     {
@@ -299,6 +402,11 @@ function onPlayerStateChange(event)
 {
     if (!player)
         return;
+
+    if (qtBridge && qtBridge.onJsStateChanged)
+    {
+        qtBridge.onJsStateChanged(event.data);
+    }
 
 
     if (event.data ===
@@ -343,6 +451,11 @@ function onPlayerError(event)
         + event.data
     );
 
+    if (qtBridge && qtBridge.onJsError)
+    {
+        qtBridge.onJsError(String(event.data));
+    }
+
 
     if (window.youtubeError)
     {
@@ -361,6 +474,8 @@ function setVideo(videoId)
 {
     requestedVideoId =
         videoId;
+
+    lastReportedDuration = -1;
 
 
     if (!player)
@@ -451,6 +566,8 @@ function getDuration()
    Start API
    ============================================================ */
 
+setupQtBridge();
+
 loadYouTubeAPI();
 
 </script>
@@ -475,13 +592,6 @@ loadYouTubeAPI();
             "https://app.scpp-player.local/"
             );
 
-
-    m_view->setHtml(
-        html,
-        baseUrl
-        );
-
-
     connect(
         m_view,
         &QWebEngineView::loadFinished,
@@ -497,13 +607,15 @@ loadYouTubeAPI();
                 return;
             }
 
-
             qDebug()
                 << "[YOUTUBE]"
                 << "Player HTML loaded.";
-
-            emit ready();
         }
+        );
+
+    m_view->setHtml(
+        html,
+        baseUrl
         );
 }
 
@@ -643,6 +755,11 @@ void YouTubePlayer::runJavaScript(
 //Gemini
 void YouTubePlayer::onJsReady()
 {
+    if (m_playerReady)
+    {
+        return;
+    }
+
     m_playerReady = true;
     emit ready();
 }
@@ -661,6 +778,11 @@ void YouTubePlayer::onJsPositionChanged(double seconds)
 
 void YouTubePlayer::onJsDurationChanged(double seconds)
 {
+    if (seconds <= 0)
+    {
+        return;
+    }
+
     emit durationChanged(static_cast<qint64>(seconds * 1000));
 }
 

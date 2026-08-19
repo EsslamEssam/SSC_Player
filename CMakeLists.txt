@@ -8,6 +8,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS
     Multimedia
     MultimediaWidgets
     WebEngineWidgets
+    WebChannel
 )
 
 set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
@@ -66,6 +67,7 @@ target_link_libraries(ClientPlayer
         Qt::Multimedia
         Qt::MultimediaWidgets
         Qt6::WebEngineWidgets
+        Qt6::WebChannel
         Crypt32
 
 
