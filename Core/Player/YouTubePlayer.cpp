@@ -283,26 +283,18 @@ void YouTubePlayer::installYouTubeFrameBridge()
         reportResult(quality, success);
     }
 
-    function qualityOptionIsSelected(element)
+    function verifyQualitySelection(quality, attempt)
     {
-        if (!element)
-        {
-            return false;
-        }
+        // After an option is clicked YouTube closes the submenu and returns
+        // to the root menu, detaching the clicked element. The reliable
+        // confirmation is the "Quality" row text, which now shows the
+        // applied resolution (e.g. "720p HD" or "Auto (1080p)").
+        var qualityRow = findMenuItem(
+            /quality|الجودة|qualité|qualidade|qualität/i
+            );
 
-        return element.classList.contains("ytp-menuitem-checked") ||
-            element.classList.contains("ytp-menuitem-selected") ||
-            element.getAttribute("aria-checked") === "true" ||
-            element.getAttribute("aria-selected") === "true" ||
-            !!element.querySelector(
-                ".ytp-menuitem-checked, .ytp-menuitem-selected, "
-                + "[aria-checked=\"true\"], [aria-selected=\"true\"]"
-                );
-    }
-
-    function verifyQualitySelection(quality, option, attempt)
-    {
-        if (qualityOptionIsSelected(option))
+        if (qualityRow &&
+            qualityMatcher(quality).test(itemText(qualityRow)))
         {
             finishCommand(quality, true);
             return;
@@ -315,7 +307,6 @@ void YouTubePlayer::installYouTubeFrameBridge()
                 {
                     verifyQualitySelection(
                         quality,
-                        option,
                         attempt + 1
                         );
                 },
@@ -364,7 +355,6 @@ void YouTubePlayer::installYouTubeFrameBridge()
             {
                 verifyQualitySelection(
                     quality,
-                    qualityOption,
                     0
                     );
             },
@@ -532,11 +522,11 @@ html, body {
 
 #player {
     position: absolute;
-    /* تكبير العرض والارتفاع بنسبة بسيطة لقص الشريط العلوي والسفلي */
-    top: -6%;
-    left: -2%;
-    width: 104%;
-    height: 112%;
+    /* ملء الحاوية بالكامل بدون قص: عناصر يوتيوب مخفية عبر CSS داخل الإطار */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none; /* يمنع الضغط بالماوس نهائياً داخل الفيديو */
 }
 
@@ -685,10 +675,13 @@ function applyRequestedPlaybackRate()
 
 function sendFrameQualityCommand(quality, attempt)
 {
-    var iframe =
-        document.querySelector("#player iframe");
+    // YT.Player replaces the #player div with an iframe that carries the
+    // same id, so the iframe IS "#player" (never a child of it).
+    var iframe = document.getElementById("player");
 
-    if (!iframe || !iframe.contentWindow)
+    if (!iframe ||
+        iframe.tagName !== "IFRAME" ||
+        !iframe.contentWindow)
     {
         if (attempt < 20)
         {
